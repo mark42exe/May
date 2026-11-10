@@ -69,3 +69,31 @@ Before using these files in a Cocos runtime, determine the binary record grammar
 4. only then implement a reader/adapter and render a native Cocos smoke-test scene.
 
 The existing ARM64 WebView APK is not evidence that this Cocos scene reader or native game port is complete.
+
+
+## New offset-table evidence (2026-11-10)
+
+The inspector now scans aligned 32-bit words for complete, in-bounds,
+strictly-descending offset arrays. It does **not** label their payloads as
+decoded nodes. The updated report was generated successfully from the recovered
+138-scene archive (Actions run 4).
+
+Verified observations from that report:
+
+- 105 of 138 scenes contain at least one candidate array under this conservative
+  rule; 152 candidate arrays were found.
+- In `RFBattleLayer.ccb`, the array at byte offset `0xD8` has 16 entries and
+  points to records containing stage/background resources such as
+  `background_3_2.webp`, `stage_0_ground_b_1.webp`, and
+  `stage_0_foreground.webp`.
+- Additional arrays in that same scene point into records containing font
+  references and indexed heat-bar names (including `heatBar40` and
+  `heatBar41`).
+- The final small values (commonly 4, and sometimes 20 or 28) behave as
+  sentinels in these candidate arrays. Their exact meaning remains unknown.
+
+This establishes that RCCB contains navigable offset-indexed regions and gives
+repeatable entry points for the next parser stage. It does **not** yet establish
+the binary grammar for each record, the node parent/child graph, property types,
+or animation timelines. Runtime scene reconstruction is still blocked on those
+decoders.
