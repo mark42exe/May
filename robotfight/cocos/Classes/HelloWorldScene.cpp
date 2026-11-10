@@ -1,5 +1,6 @@
 #include "HelloWorldScene.h"
 #include "RobotFightCore.h"
+#include "audio/include/AudioEngine.h"
 
 #include <algorithm>
 #include <memory>
@@ -56,6 +57,7 @@ Scene* HelloWorld::createScene() {
 
 bool HelloWorld::init() {
     if (!Scene::init()) return false;
+    AudioEngine::play2d("original/bgm_scene_battleFight.wav", true, 0.42f);
 
     const auto visible = Director::getInstance()->getVisibleSize();
     const auto origin = Director::getInstance()->getVisibleOrigin();
@@ -146,6 +148,7 @@ bool HelloWorld::init() {
 
     // Garage: cycle through original recovered part identifiers and persist each choice.
     auto openGarage = [=]() {
+        AudioEngine::play2d("original/sfx_btn_press.ogg");
         auto panel = Node::create();
         addChild(panel, 100);
         auto shade = DrawNode::create();
@@ -305,6 +308,10 @@ bool HelloWorld::init() {
         auto item = MenuItemLabel::create(label, [=](Ref*) {
             if (battle->outcome() != BattleOutcome::Ongoing) return;
             const auto result = battle->step(command);
+            if (command == Command::HeavyStrike)
+                AudioEngine::play2d("original/sfx_battle_onHitHeavy1.ogg");
+            else if (command != Command::Guard)
+                AudioEngine::play2d("original/Normal1.ogg");
             status->setString(StringUtils::format("YOU: %s   BOT: %s",
                 command == Command::Strike ? "STRIKE" :
                 command == Command::HeavyStrike ? "HEAVY" :
@@ -315,9 +322,11 @@ bool HelloWorld::init() {
             if (result.outcome == BattleOutcome::PlayerWin) {
                 LocalProfile::recordResult(result.outcome);
                 status->setString("VICTORY  +2,000 COINS");
+                AudioEngine::play2d("original/sfx_battle_robotdestroy.ogg");
             } else if (result.outcome == BattleOutcome::BotWin) {
                 LocalProfile::recordResult(result.outcome);
                 status->setString("DEFEAT  -  NO COINS AWARDED");
+                AudioEngine::play2d("original/sfx_battle_destroy.ogg");
             } else if (result.outcome == BattleOutcome::Draw) {
                 status->setString("DRAW  -  NO COINS AWARDED");
             }
