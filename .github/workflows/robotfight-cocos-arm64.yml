@@ -276,4 +276,100 @@ jobs:
           find "$PROJECT_DIR/proj.android-studio/app/obj/local/arm64-v8a" -type f -name '*.so' -print
           test -s "$PROJECT_DIR/proj.android-studio/app/obj/local/arm64-v8a/libMyGame.so"
           file "$PROJECT_DIR/proj.android-studio/app/obj/local/arm64-v8a/libMyGame.so"
-          echo "Cocos 3.15.1 ARM64 native compilation passed. No APK was assembled or uploaded."
+          echo "Cocos 3.15.1 ARM64 native compilation passed."
+
+      - name: Set up Java 8 for legacy Cocos Gradle template
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+
+      - name: Install Android SDK components for Cocos template
+        run: |
+          set -euo pipefail
+          sdkmanager "platforms;android-22" "build-tools;25.0.0"
+
+      - name: Package prebuilt ARM64 native library into Android APK
+        run: |
+          set -euo pipefail
+          STUDIO="$PROJECT_DIR/proj.android-studio"
+          mkdir -p "$STUDIO/app/src/main/jniLibs/arm64-v8a"
+          cp "$STUDIO/app/obj/local/arm64-v8a/libMyGame.so" "$STUDIO/app/src/main/jniLibs/arm64-v8a/libMyGame.so"
+          test -s "$STUDIO/app/src/main/jniLibs/arm64-v8a/libMyGame.so"
+          cat > "$STUDIO/build.gradle" <<'GRADLE'
+          buildscript {
+              repositories { google(); mavenCentral(); jcenter() }
+              dependencies { classpath 'com.android.tools.build:gradle:2.3.0' }
+          }
+          allprojects { repositories { google(); mavenCentral(); jcenter() } }
+          GRADLE
+          cat > "$STUDIO/app/build.gradle" <<'GRADLE'
+          apply plugin: 'com.android.application'
+          android {
+              compileSdkVersion 22
+              buildToolsVersion "25.0.0"
+              defaultConfig {
+                  applicationId "com.animocabrands.robotfight.restored"
+                  minSdkVersion 21
+                  targetSdkVersion 22
+                  versionCode 1
+                  versionName "1.0-arm64"
+                  ndk { abiFilters "arm64-v8a" }
+              }
+              sourceSets.main {
+                  java.srcDir "src"
+                  res.srcDir "res"
+                  manifest.srcFile "AndroidManifest.xml"
+                  assets.srcDir "../../Resources"
+                  jniLibs.srcDir "src/main/jniLibs"
+              }
+          }
+          dependencies {
+              compile fileTree(dir: 'libs', include: ['*.jar'])
+              compile project(':libcocos2dx')
+          }
+          GRADLE
+          python3 - "$STUDIO/app/AndroidManifest.xml" <<'PY'
+          from pathlib import Path
+          import sys
+          p = Path(sys.argv[1])
+          s = p.read_text()
+          s = s.replace('package="org.cocos2dx.hellocpp"', 'package="com.animocabrands.robotfight.restored"')
+          p.write_text(s)
+          PY
+          GRADLE_ZIP="$RUNNER_TEMP/gradle-3.3-bin.zip"
+          curl -fL --retry 3 --retry-delay 2 https://services.gradle.org/distributions/gradle-3.3-bin.zip -o "$GRADLE_ZIP"
+          unzip -q "$GRADLE_ZIP" -d "$RUNNER_TEMP"
+          "$RUNNER_TEMP/gradle-3.3/bin/gradle" -p "$STUDIO" --no-daemon --stacktrace :app:assembleDebug
+          APK="$STUDIO/app/build/outputs/apk/app-debug.apk"
+          test -s "$APK"
+          mkdir -p "$RUNNER_TEMP/final-apk"
+          cp "$APK" "$RUNNER_TEMP/final-apk/ToyAttack_ARM64.apk"
+          file "$STUDIO/app/src/main/jniLibs/arm64-v8a/libMyGame.so"
+          python3 - "$APK" <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          import struct, sys
+          apk = Path(sys.argv[1])
+          with ZipFile(apk) as z:
+              names = set(z.namelist())
+              lib = "lib/arm64-v8a/libMyGame.so"
+              if lib not in names:
+                  raise SystemExit("APK missing ARM64 native library")
+              data = z.read(lib)
+              if data[:4] != bytes([127, 69, 76, 70]) or data[4] != 2 or data[5] != 1:
+                  raise SystemExit("Native library is not ELF64 little-endian")
+              machine = struct.unpack_from("<H", data, 18)[0]
+              if machine != 183:
+                  raise SystemExit(f"Native library machine is not AArch64: {machine}")
+              if not any(n.endswith("/RFBattleLayer.ccb") for n in names):
+                  raise SystemExit("APK missing recovered original battle scene")
+              print("APK verification passed: ARM64 ELF library and original battle scene present")
+          PY
+
+      - name: Upload Toy Attack ARM64 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ToyAttack-ARM64-APK
+          path: ${{ runner.temp }}/final-apk/ToyAttack_ARM64.apk
+          if-no-files-found: error
