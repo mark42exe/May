@@ -223,18 +223,33 @@ bool HelloWorld::init() {
     battleEvent->setOpacity(0);
     addChild(battleEvent, 80);
 
-    // Prefer original Toy Attack component art when the optional asset pack is present.
-    // The fallback remains a simple diagnostic silhouette until the full scene reader is ready.
-    auto makeRobotView = [&](float x, float y, bool enemy) -> Node* {
+    // Resolve each robot's appearance independently. The opponent must use its own
+    // recovered part IDs rather than accidentally mirroring the player's loadout.
+    const std::array<std::string, 5> playerPartIds = {{
+        UserDefault::getInstance()->getStringForKey("rf.part.base", "2_0"),
+        UserDefault::getInstance()->getStringForKey("rf.part.core", "1_0"),
+        UserDefault::getInstance()->getStringForKey("rf.part.head", "3_5"),
+        UserDefault::getInstance()->getStringForKey("rf.part.front", "0_0"),
+        UserDefault::getInstance()->getStringForKey("rf.part.back", "0_3")
+    }};
+    const std::array<std::string, 5> botPartIds = {{"1_0", "1_0", "3_5", "0_0", "1_0"}};
+    const std::string playerBatteryId =
+        UserDefault::getInstance()->getStringForKey("rf.part.battery", "0_0");
+    const std::string botBatteryId = "0_1";
+
+    // Prefer original Toy Attack component art. The diagnostic fallback is used
+    // only when an individual original sprite cannot be loaded.
+    auto makeRobotView = [&](float x, float y, bool enemy,
+                             const std::array<std::string, 5>& partIds,
+                             const std::string& batteryId) -> Node* {
         auto robot = Node::create();
-        const auto batteryId = UserDefault::getInstance()->getStringForKey("rf.part.battery", "0_0");
         const auto batteryTextureId = batteryId.substr(batteryId.find_last_of('_') + 1);
         const struct PartPlacement { std::string file; Vec2 position; float scale; } parts[] = {
-            {(std::string("original/base_") + UserDefault::getInstance()->getStringForKey("rf.part.base", "2_0") + ".png").c_str(), Vec2(0, -42), 0.72f},
-            {(std::string("original/core_") + UserDefault::getInstance()->getStringForKey("rf.part.core", "1_0") + ".png").c_str(), Vec2(0, 4), 0.72f},
-            {(std::string("original/head_") + UserDefault::getInstance()->getStringForKey("rf.part.head", "3_5") + ".png").c_str(), Vec2(0, 52), 0.72f},
-            {(std::string("original/arm_b_") + UserDefault::getInstance()->getStringForKey("rf.part.back", "0_3") + ".png").c_str(), Vec2(-61, 4), 0.62f},
-            {(std::string("original/arm_f_") + UserDefault::getInstance()->getStringForKey("rf.part.front", "0_0") + ".png").c_str(), Vec2(61, 4), 0.62f},
+            {(std::string("original/base_") + partIds[0] + ".png").c_str(), Vec2(0, -42), 0.72f},
+            {(std::string("original/core_") + partIds[1] + ".png").c_str(), Vec2(0, 4), 0.72f},
+            {(std::string("original/head_") + partIds[2] + ".png").c_str(), Vec2(0, 52), 0.72f},
+            {(std::string("original/arm_b_") + partIds[4] + ".png").c_str(), Vec2(-61, 4), 0.62f},
+            {(std::string("original/arm_f_") + partIds[3] + ".png").c_str(), Vec2(61, 4), 0.62f},
             {(std::string("original/battery_1_") + batteryTextureId + ".png").c_str(), Vec2(34, -62), 0.34f},
         };
         int loaded = 0;
@@ -261,9 +276,9 @@ bool HelloWorld::init() {
         robot->setPosition(x, y);
         return robot;
     };
-    auto playerRobot = std::make_shared<Node*>(makeRobotView(w * 0.25f, h * 0.55f, false));
+    auto playerRobot = std::make_shared<Node*>(makeRobotView(w * 0.25f, h * 0.55f, false, playerPartIds, playerBatteryId));
     addChild(*playerRobot);
-    auto botRobot = std::make_shared<Node*>(makeRobotView(w * 0.75f, h * 0.55f, true));
+    auto botRobot = std::make_shared<Node*>(makeRobotView(w * 0.75f, h * 0.55f, true, botPartIds, botBatteryId));
     addChild(*botRobot);
 
 
@@ -281,7 +296,7 @@ bool HelloWorld::init() {
         heading->setPosition(w * 0.5f, h * 0.88f);
         heading->setTextColor(Color4B(110, 220, 255, 255));
         panel->addChild(heading);
-        auto garageRobot = std::make_shared<Node*>(makeRobotView(w * 0.84f, h * 0.48f, false));
+        auto garageRobot = std::make_shared<Node*>(makeRobotView(w * 0.84f, h * 0.48f, false, playerPartIds, playerBatteryId));
         panel->addChild(*garageRobot, 5);
 
         const std::vector<std::string> ids = {
@@ -331,10 +346,10 @@ bool HelloWorld::init() {
                 UserDefault::getInstance()->flush();
                 current->setString(value);
                 if (*playerRobot) (*playerRobot)->removeFromParent();
-                *playerRobot = makeRobotView(w * 0.25f, h * 0.55f, false);
+                *playerRobot = makeRobotView(w * 0.25f, h * 0.55f, false, playerPartIds, playerBatteryId);
                 addChild(*playerRobot, 2);
                 if (*garageRobot) (*garageRobot)->removeFromParent();
-                *garageRobot = makeRobotView(w * 0.84f, h * 0.48f, false);
+                *garageRobot = makeRobotView(w * 0.84f, h * 0.48f, false, playerPartIds, playerBatteryId);
                 panel->addChild(*garageRobot, 5);
             };
             auto leftLabel = Label::createWithSystemFont("<", "Arial", 24);
