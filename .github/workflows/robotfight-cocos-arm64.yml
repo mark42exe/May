@@ -97,24 +97,43 @@ jobs:
           PY
           sed -i 's/PROP_BUILD_TYPE=.*/PROP_BUILD_TYPE=cmake/' "$PROJECT_DIR/proj.android/gradle.properties" || true
           mkdir -p "$PROJECT_DIR/Resources"
-          cp robotfight/cocos/Classes/HelloWorldScene.cpp "$PROJECT_DIR/Classes/HelloWorldScene.cpp"
-          cp robotfight/cocos/Classes/HelloWorldScene.h "$PROJECT_DIR/Classes/HelloWorldScene.h"
-          cp robotfight/cocos/Classes/RobotFightCore.cpp "$PROJECT_DIR/Classes/RobotFightCore.cpp"
-          cp robotfight/cocos/Classes/RobotFightCore.h "$PROJECT_DIR/Classes/RobotFightCore.h"
-          # Ensure the new offline battle module is part of the native CMake target.
+          mkdir -p "$PROJECT_DIR/Classes"
+          # Copy the complete checked-in game source directory, then verify every input
+          # before CMake runs. This avoids silent partial copies and path assumptions.
+          cp -av robotfight/cocos/Classes/. "$PROJECT_DIR/Classes/"
           python3 - <<'PY'
           from pathlib import Path
-          import os
-          cmake = Path(os.environ["PROJECT_DIR"]) / "CMakeLists.txt"
+          import os, re
+          project = Path(os.environ["PROJECT_DIR"])
+          classes = project / "Classes"
+          required = [
+              "HelloWorldScene.cpp",
+              "HelloWorldScene.h",
+              "RobotFightCore.cpp",
+              "RobotFightCore.h",
+          ]
+          missing = [name for name in required if not (classes / name).is_file() or (classes / name).stat().st_size == 0]
+          if missing:
+              raise SystemExit("Missing or empty native source files: " + ", ".join(missing))
+          cmake = project / "CMakeLists.txt"
           source = cmake.read_text()
-          if "Classes/RobotFightCore.cpp" not in source:
-              source = source.replace("Classes/HelloWorldScene.cpp", "Classes/HelloWorldScene.cpp\\n    Classes/RobotFightCore.cpp")
-          if "Classes/RobotFightCore.h" not in source:
-              source = source.replace("Classes/HelloWorldScene.h", "Classes/HelloWorldScene.h\\n    Classes/RobotFightCore.h")
-          cmake.write_text(source)
-          if "Classes/RobotFightCore.cpp" not in cmake.read_text():
-              raise SystemExit("RobotFightCore.cpp was not added to the CMake target")
+          # Add the battle module as a target source rather than editing the template's
+          # GAME_SOURCE/GAME_HEADER lists (their layout differs between Cocos templates).
+          if "target_sources(MyGame PRIVATE" not in source:
+              match = re.search(r"add_library\\s*\\(\\s*\\$\\{APP_NAME\\}", source)
+              if not match:
+                  raise SystemExit("Could not locate Cocos add_library(${APP_NAME} ...) target")
+              source += "\\n\\n# Robot Fight offline battle logic\\ntarget_sources(${APP_NAME} PRIVATE \${CMAKE_CURRENT_SOURCE_DIR}/Classes/RobotFightCore.cpp)\\n"
+              cmake.write_text(source)
+          if "RobotFightCore.cpp" not in cmake.read_text():
+              raise SystemExit("RobotFightCore.cpp was not registered with CMake")
+          print("Native source preflight passed:", ", ".join(required))
+          print("CMake target source registration passed")
           PY
+          test -s "$PROJECT_DIR/Classes/HelloWorldScene.cpp"
+          test -s "$PROJECT_DIR/Classes/HelloWorldScene.h"
+          test -s "$PROJECT_DIR/Classes/RobotFightCore.cpp"
+          test -s "$PROJECT_DIR/Classes/RobotFightCore.h"
 
       - name: Fetch original scene bundle from verified workflow artifact
         env:
