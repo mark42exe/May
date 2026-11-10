@@ -124,6 +124,7 @@ bool HelloWorld::init() {
             {(std::string("original/head_") + UserDefault::getInstance()->getStringForKey("rf.part.head", "3_5") + ".png").c_str(), Vec2(0, 52), 0.72f},
             {(std::string("original/arm_b_") + UserDefault::getInstance()->getStringForKey("rf.part.back", "0_3") + ".png").c_str(), Vec2(-61, 4), 0.62f},
             {(std::string("original/arm_f_") + UserDefault::getInstance()->getStringForKey("rf.part.front", "0_0") + ".png").c_str(), Vec2(61, 4), 0.62f},
+            {(std::string("original/battery_1_") + UserDefault::getInstance()->getStringForKey("rf.part.battery", "0") + ".png").c_str(), Vec2(34, -62), 0.34f},
         };
         int loaded = 0;
         for (const auto& part : parts) {
@@ -184,10 +185,12 @@ bool HelloWorld::init() {
             {"CORE", "core", "core_", "rf.part.core"},
             {"HEAD", "head", "head_", "rf.part.head"},
             {"BACK ARM", "back", "arm_b_", "rf.part.back"},
-            {"FRONT ARM", "front", "arm_f_", "rf.part.front"}
+            {"FRONT ARM", "front", "arm_f_", "rf.part.front"},
+            {"BATTERY", "battery", "battery_1_", "rf.part.battery"}
         };
-        for (int i = 0; i < 5; ++i) {
-            const float y = h * 0.73f - i * h * 0.115f;
+        const std::vector<std::string> batteryIds = {"0", "1", "2"};
+        for (int i = 0; i < 6; ++i) {
+            const float y = h * 0.75f - i * h * 0.095f;
             auto name = Label::createWithSystemFont(slots[i].title, "Arial", 18);
             name->setAnchorPoint(Vec2(1, 0.5f));
             name->setPosition(w * 0.36f, y);
@@ -199,18 +202,20 @@ bool HelloWorld::init() {
                     std::string(slot.key) == "base" ? "2_0" :
                     std::string(slot.key) == "core" ? "1_0" :
                     std::string(slot.key) == "head" ? "3_5" :
-                    std::string(slot.key) == "back" ? "0_3" : "0_0"),
+                    std::string(slot.key) == "back" ? "0_3" :
+                    std::string(slot.key) == "battery" ? "0" : "0_0"),
                 "Arial", 19);
             current->setPosition(w * 0.56f, y);
             current->setTextColor(Color4B(255, 205, 95, 255));
             panel->addChild(current);
 
+            const auto choices = std::string(slot.key) == "battery" ? batteryIds : ids;
             auto change = [=](int direction) {
                 auto value = UserDefault::getInstance()->getStringForKey(slot.saveKey, current->getString());
-                auto it = std::find(ids.begin(), ids.end(), value);
-                int index = it == ids.end() ? 0 : static_cast<int>(it - ids.begin());
-                index = (index + direction + static_cast<int>(ids.size())) % static_cast<int>(ids.size());
-                value = ids[index];
+                auto it = std::find(choices.begin(), choices.end(), value);
+                int index = it == choices.end() ? 0 : static_cast<int>(it - choices.begin());
+                index = (index + direction + static_cast<int>(choices.size())) % static_cast<int>(choices.size());
+                value = choices[index];
                 UserDefault::getInstance()->setStringForKey(slot.saveKey, value);
                 UserDefault::getInstance()->flush();
                 current->setString(value);
