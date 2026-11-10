@@ -6,6 +6,7 @@ on:
     paths:
       - "robotfight/cocos/**"
       - "tools/import_robotfight_assets.py"
+      - "tools/audit_robot_part_geometry.py"
       - ".github/workflows/robotfight-cocos-arm64.yml"
 
 permissions:
@@ -206,6 +207,17 @@ jobs:
           print("Verified original resource import:", files, "files")
           print("Image conversion counts:", manifest["counts"])
           PY
+
+      - name: Audit original robot part geometry and image references
+        run: |
+          python3 tools/audit_robot_part_geometry.py "$PROJECT_DIR/Resources/original" --out "$RUNNER_TEMP/robot_part_geometry_audit.json"
+
+      - name: Upload original robot geometry audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-Original-Part-Geometry-Audit
+          path: ${{ runner.temp }}/robot_part_geometry_audit.json
+          if-no-files-found: error
 
       - name: Update Android Gradle wrapper
         run: |
