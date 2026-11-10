@@ -159,6 +159,8 @@ bool HelloWorld::init() {
         heading->setPosition(w * 0.5f, h * 0.88f);
         heading->setTextColor(Color4B(110, 220, 255, 255));
         panel->addChild(heading);
+        auto garageRobot = std::make_shared<Node*>(makeRobotView(w * 0.84f, h * 0.48f, false));
+        panel->addChild(*garageRobot, 5);
 
         const std::vector<std::string> ids = {
             "0_0","0_1","0_2","0_3","0_4","0_5","0_6",
@@ -205,6 +207,9 @@ bool HelloWorld::init() {
                 if (*playerRobot) (*playerRobot)->removeFromParent();
                 *playerRobot = makeRobotView(w * 0.25f, h * 0.55f, false);
                 addChild(*playerRobot, 2);
+                if (*garageRobot) (*garageRobot)->removeFromParent();
+                *garageRobot = makeRobotView(w * 0.84f, h * 0.48f, false);
+                panel->addChild(*garageRobot, 5);
             };
             auto leftLabel = Label::createWithSystemFont("<", "Arial", 24);
             auto rightLabel = Label::createWithSystemFont(">", "Arial", 24);
