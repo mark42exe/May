@@ -31,7 +31,11 @@ def image_info(path):
 def ccb_info(path):
     data = path.read_bytes()
     result = {"ccb_signature_hex": data[:8].hex()}
-    if data.startswith(b"ccbi"):
+    if len(data) >= 8 and data[4:8] == b"RCCB":
+        result["ccb_container"] = "RCCB-game-specific"
+        result["rccb_prefix_u32"] = struct.unpack_from("<I", data, 0)[0]
+        result["rccb_header_u16"] = list(struct.unpack_from("<4H", data, 8)) if len(data) >= 16 else []
+    elif data.startswith(b"ccbi"):
         result["ccb_container"] = "CCBI"
         if len(data) > 4:
             result["ccb_version_byte"] = data[4]
