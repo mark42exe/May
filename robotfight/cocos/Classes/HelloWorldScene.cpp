@@ -812,7 +812,7 @@ bool HelloWorld::init() {
     questItem->setPosition(w * 0.86f, h * 0.13f);
     auto homeMenu = Menu::create(fightItem, labItem, stageItem, profileItem, questItem, nullptr);
     homeMenu->setPosition(Vec2::ZERO);
-    home->addChild(homeMenu);
+    home->addChild(homeMenu, 10);
 
     return true;
 }
