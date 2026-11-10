@@ -9,6 +9,10 @@ on:
       - "tools/audit_robot_part_geometry.py"
       - ".github/workflows/robotfight-cocos-arm64.yml"
 
+concurrency:
+  group: robotfight-arm64-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
