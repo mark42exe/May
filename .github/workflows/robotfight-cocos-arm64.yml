@@ -63,6 +63,24 @@ jobs:
           print("Verified string.h declarations for memcmp/memcpy")
           PY
 
+      - name: Patch legacy Cocos allocator header for modern ARM64 compiler
+        run: |
+          set -euo pipefail
+          SOURCE="$PROJECT_DIR/cocos2d/cocos/base/allocator/CCAllocatorStrategyGlobalSmallBlock.h"
+          test -s "$SOURCE"
+          python3 - "$SOURCE" <<'PY'
+          from pathlib import Path
+          import sys
+          path = Path(sys.argv[1])
+          source = path.read_text()
+          if "#include <string.h>" not in source:
+              source = "#include <string.h>\\n" + source
+              path.write_text(source)
+          if "memset(_smallBlockAllocators" not in source:
+              raise SystemExit("Unexpected allocator header; refusing an unsafe patch")
+          print("Verified string.h declarations for allocator memset")
+          PY
+
       - name: Install Cocos 3.15.1 third-party native dependencies
         run: |
           set -euo pipefail
