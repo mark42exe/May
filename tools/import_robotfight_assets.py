@@ -18,14 +18,14 @@ def safe_target(root: pathlib.Path, name: str) -> pathlib.Path:
     return target
 
 def extract_dca(data: bytes, out: pathlib.Path) -> int:
-    if data[:4] != b"DCA\\0":
+    if data[:4] != b"DCA\0":
         raise ValueError("Input is not a DCA archive")
     version, flags, records_offset, records_bytes, strings_offset, strings_bytes = struct.unpack_from("<6I", data, 4)
     if records_bytes % 8 or strings_offset + strings_bytes > len(data):
         raise ValueError("Invalid DCA directory bounds")
     table = data[strings_offset:strings_offset + strings_bytes]
     names, pos = {}, 0
-    for raw in table.split(b"\\0"):
+    for raw in table.split(b"\0"):
         names[pos] = raw.decode("utf-8", "replace")
         pos += len(raw) + 1
     manifest = []
@@ -51,7 +51,7 @@ def unpack_input(path: pathlib.Path, temp: pathlib.Path) -> pathlib.Path:
     data = path.read_bytes()
     source = temp / "source"
     source.mkdir(parents=True, exist_ok=True)
-    if data[:4] == b"DCA\\0":
+    if data[:4] == b"DCA\0":
         extract_dca(data, source)
         return source
     if not zipfile.is_zipfile(path):
