@@ -64,6 +64,17 @@ def unpack_input(path: pathlib.Path, temp: pathlib.Path) -> pathlib.Path:
         ) if name in names), None)
         if dca_name:
             extract_dca(archive.read(dca_name), source)
+            # SoundEvents.plist references audio stored beside the DCA, not inside it.
+            # Preserve these original audio/font payloads so the native port can play them.
+            prefix = "assets/robotfight_original/"
+            for info in archive.infolist():
+                if info.is_dir() or not info.filename.startswith(prefix):
+                    continue
+                relative = info.filename[len(prefix):]
+                suffix = pathlib.PurePosixPath(relative).suffix.lower()
+                if "/" in relative or suffix not in {".ogg", ".wav", ".m4a", ".mp3", ".ttf"}:
+                    continue
+                safe_target(source, relative).write_bytes(archive.read(info))
             return source
         # Named asset bundle: flatten its single enclosing folder but keep subdirectories.
         for info in archive.infolist():
