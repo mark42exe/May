@@ -45,6 +45,31 @@ jobs:
         run: |
           python3 tools/audit_robotfight_assets.py "$PROJECT_DIR/app/src/main/assets/robotfight_original/art" --out "$RUNNER_TEMP/robotfight_asset_inventory.json"
           test -s "$RUNNER_TEMP/robotfight_asset_inventory.json"
+          python3 - "$PROJECT_DIR/app/src/main/assets/robotfight_original/art" "$RUNNER_TEMP/robotfight_ccb_headers.txt" <<'PY'
+          from pathlib import Path
+          import sys, collections
+          root, out = Path(sys.argv[1]), Path(sys.argv[2])
+          files = sorted(root.rglob("*.ccb"))
+          counts = collections.Counter()
+          lines = [f"CCB files: {len(files)}"]
+          for p in files:
+              data = p.read_bytes()
+              b = data[:32]
+              kind = "CCBI" if b[:4] == b"ccbi" else "binary-plist" if b.startswith(b"bplist00") else "xml-plist" if b.lstrip().startswith(b"<?xml") else "unknown/custom"
+              counts[kind] += 1
+              if sum(x.startswith("SAMPLE ") for x in lines) < 30:
+                  lines.append(f"SAMPLE {p.relative_to(root)} | {len(data)} bytes | {kind} | {b.hex()}")
+          lines.append("COUNTS " + repr(dict(counts)))
+          out.write_text("\n".join(lines) + "\n")
+          print(out.read_text())
+          PY
+
+      - name: Upload CCB scene format samples
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-CCB-Scene-Headers
+          path: ${{ runner.temp }}/robotfight_ccb_headers.txt
+          if-no-files-found: error
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
