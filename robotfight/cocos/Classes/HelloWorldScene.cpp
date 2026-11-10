@@ -3,6 +3,7 @@
 #include "audio/include/AudioEngine.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <memory>
 #include <string>
 #include <vector>
@@ -407,7 +408,7 @@ bool HelloWorld::init() {
             }
             if (command == Command::Boost)
                 playOriginalEffect(this, "boost_ef1_default_Anim.plist",
-                                   (*playerRobot)->getPosition() + Vec2(-25, -48), 1.0f, true);
+                                   (*playerRobot)->getPosition() + Vec2(-25, -48), 1.0f);
             if (command == Command::HeavyStrike)
                 AudioEngine::play2d("original/sfx_battle_onHitHeavy1.ogg");
             else if (command != Command::Guard)
