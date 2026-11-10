@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -753,9 +754,9 @@ bool HelloWorld::init() {
         art->setScale(0.60f);
         home->addChild(art, 2);
     };
-    homeButtonArt(w * 0.48f, h * 0.13f);
-    homeButtonArt(w * 0.68f, h * 0.13f);
-    homeButtonArt(w * 0.86f, h * 0.13f);
+    homeButtonArt(w * 0.43f, h * 0.13f);
+    homeButtonArt(w * 0.60f, h * 0.13f);
+    homeButtonArt(w * 0.77f, h * 0.13f);
 
     auto infoPanel = [=](const std::string& headingText, const std::string& bodyText) {
         auto panel = Node::create();
@@ -796,13 +797,13 @@ bool HelloWorld::init() {
     labItem->setPosition(w * 0.30f, h * 0.27f);
     auto stageLabel = Label::createWithSystemFont("STAGES", "Arial", 20);
     auto stageItem = MenuItemLabel::create(stageLabel, [=](Ref*) { openStages(); });
-    stageItem->setPosition(w * 0.48f, h * 0.13f);
+    stageItem->setPosition(w * 0.43f, h * 0.13f);
     auto profileLabel = Label::createWithSystemFont("PROFILE", "Arial", 17);
     auto profileItem = MenuItemLabel::create(profileLabel, [=](Ref*) {
         infoPanel("PILOT PROFILE", StringUtils::format("COINS  %d\\nWINS  %d\\nLOSSES  %d",
             LocalProfile::coins(), LocalProfile::wins(), LocalProfile::losses()));
     });
-    profileItem->setPosition(w * 0.68f, h * 0.13f);
+    profileItem->setPosition(w * 0.60f, h * 0.13f);
     auto questLabel = Label::createWithSystemFont("QUESTS", "Arial", 17);
     auto questItem = MenuItemLabel::create(questLabel, [=](Ref*) {
         const auto questData = FileUtils::getInstance()->getValueMapFromFile("original/RFQuestData.plist");
@@ -837,7 +838,7 @@ bool HelloWorld::init() {
             completedTrackedAchievements, trackedAchievements);
         infoPanel("QUESTS & ACHIEVEMENTS", body);
     });
-    questItem->setPosition(w * 0.86f, h * 0.13f);
+    questItem->setPosition(w * 0.77f, h * 0.13f);
     auto settingsLabel = Label::createWithSystemFont("SETTINGS", "Arial", 15);
     auto settingsItem = MenuItemLabel::create(settingsLabel, [=](Ref*) {
         auto panel = Node::create();
@@ -887,7 +888,7 @@ bool HelloWorld::init() {
         backMenu->setPosition(Vec2::ZERO);
         panel->addChild(backMenu);
     });
-    settingsItem->setPosition(w * 0.95f, h * 0.13f);
+    settingsItem->setPosition(w * 0.93f, h * 0.13f);
     auto homeMenu = Menu::create(fightItem, labItem, stageItem, profileItem, questItem, settingsItem, nullptr);
     homeMenu->setPosition(Vec2::ZERO);
     home->addChild(homeMenu, 10);
