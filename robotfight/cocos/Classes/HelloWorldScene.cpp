@@ -23,6 +23,7 @@ using robotfight::RobotBuild;
 
 
 void playOriginalSoundEvent(const std::string& eventName) {
+    if (!UserDefault::getInstance()->getBoolForKey("rf.audio.effects", true)) return;
     const auto soundData = FileUtils::getInstance()->getValueMapFromFile("original/SoundEvents.plist");
     const auto eventsIt = soundData.find("events");
     if (eventsIt == soundData.end()) return;
@@ -153,7 +154,9 @@ Scene* HelloWorld::createScene() {
 
 bool HelloWorld::init() {
     if (!Scene::init()) return false;
-    const int menuMusicId = AudioEngine::play2d("original/intro_bgm.wav", true, 0.42f);
+    auto menuMusicId = std::make_shared<int>(AudioEngine::INVALID_AUDIO_ID);
+    if (UserDefault::getInstance()->getBoolForKey("rf.audio.music", true))
+        *menuMusicId = AudioEngine::play2d("original/intro_bgm.wav", true, 0.42f);
 
     const auto visible = Director::getInstance()->getVisibleSize();
     const auto origin = Director::getInstance()->getVisibleOrigin();
@@ -782,8 +785,9 @@ bool HelloWorld::init() {
     auto fightItem = MenuItemLabel::create(fightLabel, [=](Ref*) {
         AudioEngine::play2d("original/sfx_btn_press.ogg");
         AudioEngine::play2d("original/sfx_battle_startBell.ogg");
-        if (menuMusicId != AudioEngine::INVALID_AUDIO_ID) AudioEngine::stop(menuMusicId);
-        AudioEngine::play2d("original/bgm_scene_battleFight.wav", true, 0.42f);
+        if (*menuMusicId != AudioEngine::INVALID_AUDIO_ID) AudioEngine::stop(*menuMusicId);
+        if (UserDefault::getInstance()->getBoolForKey("rf.audio.music", true))
+            AudioEngine::play2d("original/bgm_scene_battleFight.wav", true, 0.42f);
         home->removeFromParent();
     });
     fightItem->setPosition(w * 0.73f, h * 0.43f);
@@ -834,7 +838,57 @@ bool HelloWorld::init() {
         infoPanel("QUESTS & ACHIEVEMENTS", body);
     });
     questItem->setPosition(w * 0.86f, h * 0.13f);
-    auto homeMenu = Menu::create(fightItem, labItem, stageItem, profileItem, questItem, nullptr);
+    auto settingsLabel = Label::createWithSystemFont("SETTINGS", "Arial", 15);
+    auto settingsItem = MenuItemLabel::create(settingsLabel, [=](Ref*) {
+        auto panel = Node::create();
+        addChild(panel, 260);
+        auto shade = DrawNode::create();
+        shade->drawSolidRect(Vec2(0, 0), Vec2(w, h), Color4F(0.01f, 0.02f, 0.04f, 0.96f));
+        panel->addChild(shade);
+        auto heading = Label::createWithSystemFont("SETTINGS", "Arial-BOLD", 28);
+        heading->setPosition(w * 0.5f, h * 0.78f);
+        heading->setTextColor(Color4B(110, 220, 255, 255));
+        panel->addChild(heading);
+        auto makeToggle = [=](const std::string& title, const std::string& key, float y,
+                              std::function<void(bool)> onChanged) {
+            auto value = UserDefault::getInstance()->getBoolForKey(key, true);
+            auto label = Label::createWithSystemFont("", "Arial", 22);
+            auto update = [=](bool enabled) {
+                label->setString(title + std::string(": ") + (enabled ? "ON" : "OFF"));
+                label->setTextColor(enabled ? Color4B(135, 235, 190, 255) :
+                                              Color4B(225, 150, 135, 255));
+            };
+            update(value);
+            auto item = MenuItemLabel::create(label, [=](Ref*) mutable {
+                value = !value;
+                UserDefault::getInstance()->setBoolForKey(key, value);
+                UserDefault::getInstance()->flush();
+                update(value);
+                if (onChanged) onChanged(value);
+            });
+            item->setPosition(w * 0.5f, y);
+            auto menu = Menu::create(item, nullptr);
+            menu->setPosition(Vec2::ZERO);
+            panel->addChild(menu);
+        };
+        makeToggle("MUSIC", "rf.audio.music", h * 0.59f, [=](bool enabled) {
+            if (enabled && *menuMusicId == AudioEngine::INVALID_AUDIO_ID)
+                *menuMusicId = AudioEngine::play2d("original/intro_bgm.wav", true, 0.42f);
+            else if (!enabled && *menuMusicId != AudioEngine::INVALID_AUDIO_ID) {
+                AudioEngine::stop(*menuMusicId);
+                *menuMusicId = AudioEngine::INVALID_AUDIO_ID;
+            }
+        });
+        makeToggle("SOUND EFFECTS", "rf.audio.effects", h * 0.43f, nullptr);
+        auto backLabel = Label::createWithSystemFont("BACK", "Arial", 20);
+        auto back = MenuItemLabel::create(backLabel, [=](Ref*) { panel->removeFromParent(); });
+        back->setPosition(w * 0.5f, h * 0.20f);
+        auto backMenu = Menu::create(back, nullptr);
+        backMenu->setPosition(Vec2::ZERO);
+        panel->addChild(backMenu);
+    });
+    settingsItem->setPosition(w * 0.95f, h * 0.13f);
+    auto homeMenu = Menu::create(fightItem, labItem, stageItem, profileItem, questItem, settingsItem, nullptr);
     homeMenu->setPosition(Vec2::ZERO);
     home->addChild(homeMenu, 10);
 
