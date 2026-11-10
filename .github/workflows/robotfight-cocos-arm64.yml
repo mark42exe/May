@@ -22,6 +22,10 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
@@ -35,6 +39,9 @@ jobs:
           mkdir -p "$RUNNER_TEMP/rf-cocos"
           cp -a "$RUNNER_TEMP/cocos2d-x/templates/cpp-template-default/." "$RUNNER_TEMP/rf-cocos/"
           cp -a "$RUNNER_TEMP/cocos2d-x" "$RUNNER_TEMP/rf-cocos/cocos2d"
+          cd "$RUNNER_TEMP/cocos2d-x"
+          git submodule update --init --recursive
+          python3 download-deps.py
           echo "PROJECT_DIR=$RUNNER_TEMP/rf-cocos" >> "$GITHUB_ENV"
 
       - name: Configure native ARM64 project
@@ -82,7 +89,7 @@ jobs:
 
       - name: Update Android Gradle wrapper
         run: |
-          sed -i 's/gradle-5.4.1-all/gradle-7.6.3-bin/' "$PROJECT_DIR/proj.android/gradle/wrapper/gradle-wrapper.properties"
+          sed -i 's/gradle-5.1.1-all/gradle-7.6.3-bin/' "$PROJECT_DIR/proj.android/gradle/wrapper/gradle-wrapper.properties"
           sed -i 's/com.android.tools.build:gradle:7.4.2/com.android.tools.build:gradle:7.4.2/' "$PROJECT_DIR/proj.android/build.gradle"
 
       - name: Build native Cocos ARM64 APK
