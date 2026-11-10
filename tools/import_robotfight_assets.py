@@ -84,15 +84,12 @@ def main():
     args.output.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="toy-attack-assets-") as td:
         source = unpack_input(args.input, pathlib.Path(td))
-        counts = {"images_png": 0, "images_webp_converted": 0, "data_files": 0, "excluded_weapon_files": 0}
+        counts = {"images_png": 0, "images_webp_converted": 0, "data_files": 0}
         imported = []
         for item in sorted(source.rglob("*")):
             if not item.is_file() or item.name == "_archive_manifest.json":
                 continue
             rel = item.relative_to(source)
-            if "weapon" in item.stem.lower():
-                counts["excluded_weapon_files"] += 1
-                continue
             suffix = item.suffix.lower()
             dest_rel = rel.with_suffix(".png") if suffix == ".webp" else rel
             dest = args.output / dest_rel
