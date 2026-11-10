@@ -33,7 +33,8 @@ RobotState makeState(const RobotBuild& build) {
     RobotState state;
     for (std::size_t i = 0; i < state.hp.size(); ++i)
         state.hp[i] = std::max(1, build.parts[i].health);
-    state.energy = kStartingEnergy;
+    state.maxEnergy = std::max(kStartingEnergy, build.parts[0].energy);
+    state.energy = state.maxEnergy;
     return state;
 }
 
@@ -97,11 +98,11 @@ TurnResult Battle::step(Command playerCommand) {
 
     if (playerCommand == Command::HeavyStrike) player_.energy -= kHeavyCost;
     else if (playerCommand == Command::Boost) player_.energy -= kBoostCost;
-    else player_.energy = std::min(kStartingEnergy, player_.energy + 8);
+    else player_.energy = std::min(player_.maxEnergy, player_.energy + 8);
 
     if (result.botCommand == Command::HeavyStrike) bot_.energy -= kHeavyCost;
     else if (result.botCommand == Command::Boost) bot_.energy -= kBoostCost;
-    else bot_.energy = std::min(kStartingEnergy, bot_.energy + 8);
+    else bot_.energy = std::min(bot_.maxEnergy, bot_.energy + 8);
 
     result.botDamage = resolveDamage(botBuild_, bot_, playerBuild_, player_,
                                      result.botCommand, playerGuarding);
