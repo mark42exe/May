@@ -58,8 +58,12 @@ def unpack_input(path: pathlib.Path, temp: pathlib.Path) -> pathlib.Path:
         raise ValueError("Input must be a Toy Attack APK, DCA archive, or named-assets ZIP")
     with zipfile.ZipFile(path) as archive:
         names = archive.namelist()
-        if "assets/gamedata.dca" in names:
-            extract_dca(archive.read("assets/gamedata.dca"), source)
+        dca_name = next((name for name in (
+            "assets/gamedata.dca",
+            "assets/robotfight_original/gamedata.dca",
+        ) if name in names), None)
+        if dca_name:
+            extract_dca(archive.read(dca_name), source)
             return source
         # Named asset bundle: flatten its single enclosing folder but keep subdirectories.
         for info in archive.infolist():
