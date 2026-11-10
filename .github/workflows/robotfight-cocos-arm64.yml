@@ -158,6 +158,25 @@ jobs:
           shutil.copy2(battle[0], target / "RFBattleLayer.ccb")
           PY
 
+      - name: Import original Toy Attack assets when the source pack is present
+        run: |
+          set -e
+          INPUT=""
+          if [ -f "robotfight/original_assets/RobotFight_full_named_assets.zip" ]; then
+            INPUT="robotfight/original_assets/RobotFight_full_named_assets.zip"
+          elif [ -f "robotfight/original_assets/toy_attack.apk" ]; then
+            INPUT="robotfight/original_assets/toy_attack.apk"
+          elif [ -f "robotfight/original_assets/gamedata.dca" ]; then
+            INPUT="robotfight/original_assets/gamedata.dca"
+          fi
+          if [ -n "$INPUT" ]; then
+            python3 -m pip install --quiet pillow
+            python3 tools/import_robotfight_assets.py --input "$INPUT" --output "$PROJECT_DIR/Resources/original"
+          else
+            echo "Original asset archive not present in repository; scene bundle only will be packaged."
+            echo "Expected: robotfight/original_assets/RobotFight_full_named_assets.zip (or toy_attack.apk)."
+          fi
+
       - name: Update Android Gradle wrapper
         run: |
           sed -i 's/gradle-5.1.1-all/gradle-7.6.3-bin/' "$PROJECT_DIR/proj.android/gradle/wrapper/gradle-wrapper.properties"
