@@ -9,6 +9,7 @@
 #include <vector>
 
 USING_NS_CC;
+using cocos2d::experimental::AudioEngine;
 
 namespace {
 using robotfight::Battle;
