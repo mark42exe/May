@@ -40,3 +40,39 @@ When all five are present, the scene composes a temporary robot preview from ori
 ## Scene-format limitation
 
 The 138 CCB files use the game-specific `RCCB` header, not standard CCBI. They remain preserved as data and must not be passed to stock Cocos `CCBReader` until a decoder has been validated against multiple scenes.
+
+
+## Recovered game-data inventory
+
+The verified resource payload contains 3,232 DCA directory records. The native build's converted resource tree currently contains 3,220 files:
+
+| Resource type | Count |
+|---|---:|
+| PNG images (including converted WebP) | 2,819 |
+| JSON part/stage/animation data | 179 |
+| Proprietary RCCB scene files | 138 |
+| Property lists | 68 |
+| Skeletal animation files | 10 |
+| Bitmap font descriptors | 3 |
+| TrueType fonts | 2 |
+| JPEG images | 1 |
+
+The original part catalog contains 198 entries: 39 each for Head, Core, FrontArm, BackArm and Base, plus 3 batteries. Each robot-part JSON includes Box2D-style body fixtures and polygon vertices, as well as physical properties such as density and friction. The catalog includes part serials, star ratings, power points, attack/HP multipliers, thumbnails, and editor customization ranges.
+
+Other recovered configuration:
+- 6 stage definitions, including the versus-stage order and stage object/trap data.
+- 13 named AI behaviour definitions.
+- 40 condition chips and 56 action chips.
+- 8 tutorial opponent robot builds.
+- 148 quest identifiers plus quest definitions and achievement requirements.
+- Loot-cycle, reward-pool, and loot-box configuration.
+- Tutorial flow, language strings, colors, skins, preload lists, and sound-event mappings.
+- 138 RCCB scene layouts, including battle HUD, main menu, editor, profile, stage selection, loot, tutorial, settings, and quest scenes.
+
+## Restoration constraints
+
+The RCCB files begin with a proprietary RCCB header and are not standard Cocos Creator/CCBReader files. They are retained intact as source references; the port must recreate their layouts and behaviour in native Cocos2d-x nodes.
+
+The DCA resource archive does not include the OGG files named by SoundEvents.plist. Those sound references are catalogued, but the corresponding audio payloads still need to be recovered from an original package or separately supplied sound archive.
+
+The recovered data is not the original proprietary C++ game source. Collision polygons, part stats, stage rules, AI chip definitions, and UI assets can be reused as data, but the runtime systems must be reimplemented and validated.
