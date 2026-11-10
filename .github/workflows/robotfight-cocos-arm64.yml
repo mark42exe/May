@@ -81,6 +81,24 @@ jobs:
           print("Verified string.h declarations for allocator memset")
           PY
 
+      - name: Patch legacy Cocos process tracker POSIX declarations
+        run: |
+          set -euo pipefail
+          SOURCE="$PROJECT_DIR/cocos2d/cocos/platform/android/jni/ProcessCpuTracker.cpp"
+          test -s "$SOURCE"
+          python3 - "$SOURCE" <<'PY'
+          from pathlib import Path
+          import sys
+          path = Path(sys.argv[1])
+          source = path.read_text()
+          if "#include <unistd.h>" not in source:
+              source = "#include <unistd.h>\\n" + source
+              path.write_text(source)
+          if "read(fd, buffer" not in source or "close(fd)" not in source:
+              raise SystemExit("Unexpected ProcessCpuTracker.cpp; refusing an unsafe patch")
+          print("Verified POSIX read/close declarations")
+          PY
+
       - name: Install Cocos 3.15.1 third-party native dependencies
         run: |
           set -euo pipefail
