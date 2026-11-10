@@ -146,6 +146,33 @@ RobotBuild makeDataBuild(const std::string& name,
     }
     return build;
 }
+
+std::string catalogPartSummary(const ValueMap& catalog, const std::string& category,
+                               const std::string& partId) {
+    const auto categoryIt = catalog.find(category);
+    if (categoryIt == catalog.end()) return partId;
+    const auto entries = categoryIt->second.asValueMap();
+    const auto found = entries.find(partId);
+    if (found == entries.end()) return partId;
+
+    const auto item = found->second.asValueMap();
+    std::string summary = partId;
+    if (category == "Battery") {
+        const float capacity = item.count("mAh") ? item.at("mAh").asFloat() : 0.0f;
+        summary += StringUtils::format("  CAPACITY %.0f mAh", capacity);
+    } else {
+        if (item.count("powerPoint"))
+            summary += StringUtils::format("  POWER %.0f", item.at("powerPoint").asFloat());
+        if (item.count("baseAtk"))
+            summary += StringUtils::format("  ATK %.0f", item.at("baseAtk").asFloat());
+        if (item.count("hpMultiplier")) {
+            const auto hp = item.at("hpMultiplier").asValueMap();
+            if (hp.count("default"))
+                summary += StringUtils::format("  HP x%.2f", hp.at("default").asFloat());
+        }
+    }
+    return summary;
+}
 }
 
 
@@ -379,14 +406,16 @@ bool HelloWorld::init() {
             name->setTextColor(Color4B(215, 230, 245, 255));
             panel->addChild(name);
             const auto slot = slots[i];
+            const std::string defaultPartId =
+                std::string(slot.key) == "base" ? "2_0" :
+                std::string(slot.key) == "core" ? "1_0" :
+                std::string(slot.key) == "head" ? "3_5" :
+                std::string(slot.key) == "back" ? "0_3" : "0_0";
+            const std::string selectedPartId =
+                UserDefault::getInstance()->getStringForKey(slot.saveKey, defaultPartId);
             auto current = Label::createWithSystemFont(
-                UserDefault::getInstance()->getStringForKey(slot.saveKey,
-                    std::string(slot.key) == "base" ? "2_0" :
-                    std::string(slot.key) == "core" ? "1_0" :
-                    std::string(slot.key) == "head" ? "3_5" :
-                    std::string(slot.key) == "back" ? "0_3" :
-                    std::string(slot.key) == "battery" ? "0_0" : "0_0"),
-                "Arial", 19);
+                catalogPartSummary(garageCatalog, slot.category, selectedPartId),
+                "Arial", 12);
             current->setPosition(w * 0.56f, y);
             current->setTextColor(Color4B(255, 205, 95, 255));
             panel->addChild(current);
@@ -416,14 +445,14 @@ bool HelloWorld::init() {
                     : std::vector<std::string>{"0_0", "1_0", "2_0", "3_5"};
             }
             auto change = [=](int direction) {
-                auto value = UserDefault::getInstance()->getStringForKey(slot.saveKey, current->getString());
+                auto value = UserDefault::getInstance()->getStringForKey(slot.saveKey, defaultPartId);
                 auto it = std::find(choices.begin(), choices.end(), value);
                 int index = it == choices.end() ? 0 : static_cast<int>(it - choices.begin());
                 index = (index + direction + static_cast<int>(choices.size())) % static_cast<int>(choices.size());
                 value = choices[index];
                 UserDefault::getInstance()->setStringForKey(slot.saveKey, value);
                 UserDefault::getInstance()->flush();
-                current->setString(value);
+                current->setString(catalogPartSummary(garageCatalog, slot.category, value));
                 if (*playerRobot) (*playerRobot)->removeFromParent();
                 *playerRobot = makeRobotView(w * 0.25f, h * 0.55f, false, readPlayerPartIds(), readPlayerBatteryId());
                 addChild(*playerRobot, 2);
