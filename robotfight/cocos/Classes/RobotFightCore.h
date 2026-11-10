@@ -69,6 +69,7 @@ private:
 class LocalProfile {
 public:
     static int coins();
+    static int battles();
     static int wins();
     static int losses();
     static void recordResult(BattleOutcome outcome);

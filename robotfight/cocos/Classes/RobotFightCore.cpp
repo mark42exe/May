@@ -131,11 +131,14 @@ TurnResult Battle::step(Command playerCommand) {
 }
 
 int LocalProfile::coins() { return cocos2d::UserDefault::getInstance()->getIntegerForKey("rf.coins", 0); }
+int LocalProfile::battles() { return cocos2d::UserDefault::getInstance()->getIntegerForKey("rf.battles", 0); }
 int LocalProfile::wins() { return cocos2d::UserDefault::getInstance()->getIntegerForKey("rf.wins", 0); }
 int LocalProfile::losses() { return cocos2d::UserDefault::getInstance()->getIntegerForKey("rf.losses", 0); }
 
 void LocalProfile::recordResult(BattleOutcome outcome) {
+    if (outcome == BattleOutcome::Ongoing) return;
     auto* save = cocos2d::UserDefault::getInstance();
+    save->setIntegerForKey("rf.battles", battles() + 1);
     if (outcome == BattleOutcome::PlayerWin) {
         save->setIntegerForKey("rf.coins", coins() + kVictoryReward);
         save->setIntegerForKey("rf.wins", wins() + 1);
@@ -149,6 +152,7 @@ void LocalProfile::recordResult(BattleOutcome outcome) {
 void LocalProfile::resetForTests(int value) {
     auto* save = cocos2d::UserDefault::getInstance();
     save->setIntegerForKey("rf.coins", std::max(0, value));
+    save->setIntegerForKey("rf.battles", 0);
     save->setIntegerForKey("rf.wins", 0);
     save->setIntegerForKey("rf.losses", 0);
     save->flush();

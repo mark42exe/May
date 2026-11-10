@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <memory>
 #include <string>
 #include <vector>
@@ -638,6 +639,7 @@ bool HelloWorld::init() {
                                    (*playerRobot)->getPosition(), 1.8f);
                 playOriginalSoundEvent("partsBroken");
             } else if (result.outcome == BattleOutcome::Draw) {
+                LocalProfile::recordResult(result.outcome);
                 status->setString("DRAW  -  NO COINS AWARDED");
             }
             refresh();
@@ -797,17 +799,39 @@ bool HelloWorld::init() {
             LocalProfile::coins(), LocalProfile::wins(), LocalProfile::losses()));
     });
     profileItem->setPosition(w * 0.68f, h * 0.13f);
-    auto questLabel = Label::createWithSystemFont("QUEST DATA", "Arial", 17);
+    auto questLabel = Label::createWithSystemFont("QUESTS", "Arial", 17);
     auto questItem = MenuItemLabel::create(questLabel, [=](Ref*) {
         const auto questData = FileUtils::getInstance()->getValueMapFromFile("original/RFQuestData.plist");
         std::size_t questCount = 0;
-        std::size_t achievementGroups = 0;
-        auto list = questData.find("QuestList");
+        std::size_t achievementCount = 0;
+        int trackedAchievements = 0;
+        int completedTrackedAchievements = 0;
+        const auto list = questData.find("QuestList");
         if (list != questData.end()) questCount = list->second.asValueVector().size();
-        auto achievements = questData.find("AchievementsDict");
-        if (achievements != questData.end()) achievementGroups = achievements->second.asValueMap().size();
-        infoPanel("RECOVERED QUEST DATA", StringUtils::format("%d original quest entries\\n%zu achievement groups\\nQuest progression is still being rebuilt.",
-            static_cast<int>(questCount), achievementGroups));
+        const auto achievements = questData.find("AchievementsDict");
+        if (achievements != questData.end()) {
+            const auto groups = achievements->second.asValueMap();
+            for (const auto& group : groups) {
+                const auto entries = group.second.asValueVector();
+                achievementCount += entries.size();
+                if (group.first != "battle" && group.first != "battleWins") continue;
+                const int current = group.first == "battle" ? LocalProfile::battles() : LocalProfile::wins();
+                for (const auto& entry : entries) {
+                    const auto fields = entry.asValueMap();
+                    const auto requirement = fields.find("requirement");
+                    if (requirement == fields.end()) continue;
+                    ++trackedAchievements;
+                    const int target = std::atoi(requirement->second.asString().c_str());
+                    if (target > 0 && current >= target) ++completedTrackedAchievements;
+                }
+            }
+        }
+        const std::string body = StringUtils::format(
+            "%d recovered quests\\n%d original achievements\\n\\nBATTLES  %d\\nWINS  %d\\n\\nBATTLE ACHIEVEMENTS  %d / %d\\nOther quest triggers are not yet reconstructed.",
+            static_cast<int>(questCount), static_cast<int>(achievementCount),
+            LocalProfile::battles(), LocalProfile::wins(),
+            completedTrackedAchievements, trackedAchievements);
+        infoPanel("QUESTS & ACHIEVEMENTS", body);
     });
     questItem->setPosition(w * 0.86f, h * 0.13f);
     auto homeMenu = Menu::create(fightItem, labItem, stageItem, profileItem, questItem, nullptr);
