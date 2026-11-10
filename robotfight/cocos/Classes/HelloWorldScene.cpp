@@ -224,6 +224,10 @@ bool HelloWorld::init() {
     }, UserDefault::getInstance()->getStringForKey("rf.part.battery", "0_0"));
     auto botBuild = makeDataBuild("TRAINING BOT", {"1_0", "1_0", "3_5", "0_0", "1_0"}, "0_1");
     auto battle = std::make_shared<Battle>(playerBuild, botBuild, 0x51A7u);
+    const char* campaignStageIds[] = {"scene_11", "scene_0", "scene_1", "scene_3", "scene_13", "scene_19"};
+    auto selectedStageIndex = std::make_shared<int>(0);
+    const std::string savedStage = UserDefault::getInstance()->getStringForKey("rf.stage", "scene_11");
+    for (int i = 0; i < 6; ++i) if (savedStage == campaignStageIds[i]) *selectedStageIndex = i;
 
     // Original battle HUD components recovered from RFBattleLayer.ccb.
     if (auto hudLeft = Sprite::create("original/battle_player_info.png")) {
@@ -518,8 +522,17 @@ bool HelloWorld::init() {
             }
             const std::string stageName = stageNames[i];
             const std::string stageId = stageIds[i];
-            auto label = Label::createWithSystemFont(stageName, "Arial", 16);
+            const bool unlocked = robotfight::LocalProfile::isStageUnlocked(i);
+            auto label = Label::createWithSystemFont(
+                unlocked ? stageName : stageName + "  /  LOCKED", "Arial", 14);
+            label->setTextColor(unlocked ? Color4B(235, 245, 255, 255) :
+                                           Color4B(125, 140, 155, 255));
             auto item = MenuItemLabel::create(label, [=](Ref*) {
+                if (!unlocked) {
+                    if (*statusRef) (*statusRef)->setString("CLEAR THE PREVIOUS ARENA TO UNLOCK THIS ONE");
+                    return;
+                }
+                *selectedStageIndex = i;
                 UserDefault::getInstance()->setStringForKey("rf.stage", stageId);
                 UserDefault::getInstance()->flush();
                 if (arena) {
@@ -660,6 +673,7 @@ bool HelloWorld::init() {
                 result.botCommand == Command::HeavyStrike ? "HEAVY" :
                 result.botCommand == Command::Boost ? "BOOST" : "GUARD"));
             if (result.outcome == BattleOutcome::PlayerWin) {
+                LocalProfile::recordStageVictory(*selectedStageIndex);
                 LocalProfile::recordResult(result.outcome);
                 status->setString("VICTORY  +2,000 COINS");
                 playOriginalEffect(this, "explosion_ef1_default_Anim.plist",
@@ -763,7 +777,9 @@ bool HelloWorld::init() {
     homeRecord->setPosition(w * 0.095f, h * 0.815f);
     homeRecord->setTextColor(Color4B(135, 220, 245, 255));
     home->addChild(homeRecord, 4);
-    auto homeTier = Label::createWithSystemFont("TIER  1", "Arial-BOLD", 17);
+    auto homeTier = Label::createWithSystemFont(
+        StringUtils::format("CAMPAIGN  %d / 6", robotfight::LocalProfile::unlockedStages()),
+        "Arial-BOLD", 17);
     homeTier->setPosition(w * 0.88f, h * 0.68f);
     homeTier->setTextColor(Color4B(255, 225, 135, 255));
     home->addChild(homeTier, 4);
