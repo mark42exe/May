@@ -784,8 +784,10 @@ bool HelloWorld::init() {
 
     auto fightLabel = Label::createWithSystemFont("FIGHT", "Arial", 24);
     auto fightItem = MenuItemLabel::create(fightLabel, [=](Ref*) {
-        AudioEngine::play2d("original/sfx_btn_press.ogg");
-        AudioEngine::play2d("original/sfx_battle_startBell.ogg");
+        if (UserDefault::getInstance()->getBoolForKey("rf.audio.effects", true)) {
+            AudioEngine::play2d("original/sfx_btn_press.ogg");
+            AudioEngine::play2d("original/sfx_battle_startBell.ogg");
+        }
         if (*menuMusicId != AudioEngine::INVALID_AUDIO_ID) AudioEngine::stop(*menuMusicId);
         if (UserDefault::getInstance()->getBoolForKey("rf.audio.music", true))
             AudioEngine::play2d("original/bgm_scene_battleFight.wav", true, 0.42f);
