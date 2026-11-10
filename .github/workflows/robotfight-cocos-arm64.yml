@@ -1,0 +1,106 @@
+name: Robot Fight Native Cocos ARM64 Smoke Test
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "robotfight/cocos/**"
+      - ".github/workflows/robotfight-cocos-arm64.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  cocos-arm64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android build tools
+        run: |
+          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;23.1.7779620" "cmake;3.22.1"
+
+      - name: Download Cocos2d-x v4 engine and template
+        run: |
+          git clone --depth 1 --branch v4 https://github.com/cocos2d/cocos2d-x.git "$RUNNER_TEMP/cocos2d-x"
+          mkdir -p "$RUNNER_TEMP/rf-cocos"
+          cp -a "$RUNNER_TEMP/cocos2d-x/templates/cpp-template-default/." "$RUNNER_TEMP/rf-cocos/"
+          cp -a "$RUNNER_TEMP/cocos2d-x" "$RUNNER_TEMP/rf-cocos/cocos2d"
+          echo "PROJECT_DIR=$RUNNER_TEMP/rf-cocos" >> "$GITHUB_ENV"
+
+      - name: Configure native ARM64 project
+        run: |
+          sed -i 's/PROP_COMPILE_SDK_VERSION=28/PROP_COMPILE_SDK_VERSION=33/' "$PROJECT_DIR/proj.android/gradle.properties"
+          sed -i 's/PROP_MIN_SDK_VERSION=16/PROP_MIN_SDK_VERSION=23/' "$PROJECT_DIR/proj.android/gradle.properties"
+          sed -i 's/PROP_TARGET_SDK_VERSION=28/PROP_TARGET_SDK_VERSION=33/' "$PROJECT_DIR/proj.android/gradle.properties"
+          sed -i 's/PROP_APP_ABI=armeabi-v7a/PROP_APP_ABI=arm64-v8a/' "$PROJECT_DIR/proj.android/gradle.properties"
+          sed -i "s/com.android.tools.build:gradle:3.4.0/com.android.tools.build:gradle:7.4.2/" "$PROJECT_DIR/proj.android/build.gradle"
+          sed -i 's/jcenter()/mavenCentral()/g' "$PROJECT_DIR/proj.android/build.gradle"
+          sed -i 's/HelloCpp/RobotFightNative/g' "$PROJECT_DIR/proj.android/settings.gradle"
+          sed -i 's/HelloCpp/RobotFightNative/g' "$PROJECT_DIR/proj.android/app/build.gradle"
+          sed -i 's/applicationId "org.cocos2dx.hellocpp"/applicationId "com.robotfight.nativeport"/' "$PROJECT_DIR/proj.android/app/build.gradle"
+          sed -i 's/APP_NAME HelloCpp/APP_NAME RobotFightNative/' "$PROJECT_DIR/CMakeLists.txt"
+          sed -i 's/"HelloCpp"/"Robot Fight Native"/g' "$PROJECT_DIR/Classes/AppDelegate.cpp"
+          sed -i 's/android:screenOrientation="[^"]*"/android:screenOrientation="landscape"/' "$PROJECT_DIR/proj.android/app/AndroidManifest.xml"
+          sed -i 's/android:label="[^"]*"/android:label="Robot Fight Native"/' "$PROJECT_DIR/proj.android/app/AndroidManifest.xml"
+          sed -i 's/PROP_BUILD_TYPE=.*/PROP_BUILD_TYPE=cmake/' "$PROJECT_DIR/proj.android/gradle.properties" || true
+          mkdir -p "$PROJECT_DIR/Resources"
+          cp robotfight/cocos/Classes/HelloWorldScene.cpp "$PROJECT_DIR/Classes/HelloWorldScene.cpp"
+          cp robotfight/cocos/Classes/HelloWorldScene.h "$PROJECT_DIR/Classes/HelloWorldScene.h"
+
+      - name: Fetch original scene bundle from verified workflow artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 42789600523 --repo "${GITHUB_REPOSITORY}" --name "RobotFight-Original-RCCB-Scenes" --dir "$RUNNER_TEMP/rccb-artifact"
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          root = Path(__import__("os").environ["RUNNER_TEMP"]) / "rccb-artifact"
+          target = Path(__import__("os").environ["PROJECT_DIR"]) / "Resources"
+          for archive in root.rglob("*.zip"):
+              with ZipFile(archive) as z:
+                  z.extractall(target)
+          scenes = list(target.rglob("*.ccb"))
+          battle = [p for p in scenes if p.name == "RFBattleLayer.ccb"]
+          print("Recovered scene files:", len(scenes))
+          if len(scenes) != 138 or not battle:
+              raise SystemExit("Original battle scene bundle is incomplete")
+          # Cocos FileUtils resolves this resource from the Resources root.
+          import shutil
+          shutil.copy2(battle[0], target / "RFBattleLayer.ccb")
+          PY
+
+      - name: Update Android Gradle wrapper
+        run: |
+          sed -i 's/gradle-5.4.1-all/gradle-7.6.3-bin/' "$PROJECT_DIR/proj.android/gradle/wrapper/gradle-wrapper.properties"
+          sed -i 's/com.android.tools.build:gradle:7.4.2/com.android.tools.build:gradle:7.4.2/' "$PROJECT_DIR/proj.android/build.gradle"
+
+      - name: Build native Cocos ARM64 APK
+        working-directory: ${{ env.PROJECT_DIR }}/proj.android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :RobotFightNative:assembleDebug
+
+      - name: Verify native ARM64 library
+        run: |
+          APK="$PROJECT_DIR/proj.android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          unzip -l "$APK" | grep -E 'lib/arm64-v8a/libMyGame.so|lib/arm64-v8a/libRobotFightNative.so'
+          mkdir -p "$RUNNER_TEMP/native-apk"
+          cp "$APK" "$RUNNER_TEMP/native-apk/RobotFight-Cocos-ARM64-smoke.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-Cocos-ARM64-Smoke-Test
+          path: ${{ runner.temp }}/native-apk/RobotFight-Cocos-ARM64-smoke.apk
+          if-no-files-found: error
