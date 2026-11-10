@@ -1,0 +1,71 @@
+# Robot Fight RCCB scene format notes
+
+## Verified inventory
+
+The original scene bundle contains **138 `.ccb` files**, totaling **952,552 bytes** in the extracted scene set. Every file begins with the same 8-byte signature:
+
+```text
+10 00 00 00 52 43 43 42
+```
+
+Interpretation that is safe to make:
+- bytes 0–3: little-endian integer 16 (meaning not yet established)
+- bytes 4–7: ASCII `RCCB`
+- bytes 8–15: repeated 16-bit values `08 00 0c 00 04 00 08 00`
+
+This is **not** the standard CCBI magic/header. The meaning of the first integer and the remaining header fields has not been proven. Do not strip the first eight bytes and feed the remainder to Cocos2d-x's stock `CCBReader` without a format-level test.
+
+## Strings and node-class inventory
+
+A diagnostic scan of printable ASCII strings found these occurrences across all 138 files:
+
+| Node class | Occurrences |
+|---|---:|
+| CCSprite | 837 |
+| CCNode | 580 |
+| CCLabelTTF | 447 |
+| DCSprite | 333 |
+| DCNode | 282 |
+| CCButton | 246 |
+| CCSprite9Slice | 216 |
+| DCLabel | 142 |
+| DCUIButton | 135 |
+| DCLabelTTF | 99 |
+| DCUIControl | 5 |
+| CCLabelBMFont | 2 |
+
+The scan found 2,346 resource-reference occurrences spanning 450 unique resource names. These are string-level counts, not decoded object counts: the same resource or class may occur in property metadata and should not be treated as proof of one instantiated node per string.
+
+## Battle scene evidence
+
+`RFBattleLayer.ccb` is 55,708 bytes and contains 187 resource-reference strings. Its string table includes:
+- two player-side HUD/code areas and player/opponent labels
+- timer and result/pause UI
+- heat/overheat meter and 42 indexed heat-bar names (0–41)
+- left/right boost controls and directional controls
+- AI-chip containers and cooldown nodes
+- player/opponent battery meters
+- robot HP components named Base, Core, Head, FrontArm, and BackArm
+
+This is enough to establish that the recovered file retains substantial original battle-scene metadata and resource links. It is not yet enough to reconstruct exact parent-child relationships, property types, animation timelines, or runtime callbacks.
+
+## Tooling added
+
+- `tools/inspect_rccb.py` emits a JSON inventory with string offsets, candidate identifiers, resource references, node-class counts, and header values.
+- `.github/workflows/rccb-inspect.yml` runs the inventory against the verified original-scene artifact and publishes `RobotFight-RCCB-Structure-Report`.
+
+Latest verified inspector run:
+- Run ID: 42790626495
+- Result: success
+- Recovered scene count: 138
+- Magic counts: `RCCB: 138`
+
+## Next engineering gate
+
+Before using these files in a Cocos runtime, determine the binary record grammar:
+1. correlate offsets and lengths across small scenes and `RFBattleLayer.ccb`;
+2. identify string, scalar, node-class, property, child-node, and timeline records;
+3. validate any candidate decoder against multiple independent scenes;
+4. only then implement a reader/adapter and render a native Cocos smoke-test scene.
+
+The existing ARM64 WebView APK is not evidence that this Cocos scene reader or native game port is complete.
