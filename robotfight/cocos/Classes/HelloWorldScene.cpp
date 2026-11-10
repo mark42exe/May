@@ -152,7 +152,7 @@ Scene* HelloWorld::createScene() {
 
 bool HelloWorld::init() {
     if (!Scene::init()) return false;
-    AudioEngine::play2d("original/bgm_scene_battleFight.wav", true, 0.42f);
+    const int menuMusicId = AudioEngine::play2d("original/intro_bgm.wav", true, 0.42f);
 
     const auto visible = Director::getInstance()->getVisibleSize();
     const auto origin = Director::getInstance()->getVisibleOrigin();
@@ -780,6 +780,8 @@ bool HelloWorld::init() {
     auto fightItem = MenuItemLabel::create(fightLabel, [=](Ref*) {
         AudioEngine::play2d("original/sfx_btn_press.ogg");
         AudioEngine::play2d("original/sfx_battle_startBell.ogg");
+        if (menuMusicId != AudioEngine::INVALID_AUDIO_ID) AudioEngine::stop(menuMusicId);
+        AudioEngine::play2d("original/bgm_scene_battleFight.wav", true, 0.42f);
         home->removeFromParent();
     });
     fightItem->setPosition(w * 0.73f, h * 0.43f);
