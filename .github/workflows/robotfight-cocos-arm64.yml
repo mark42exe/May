@@ -69,18 +69,28 @@ jobs:
           # Android 12+ requires an explicit exported value on launcher activities.
           python3 - <<'PY'
           from pathlib import Path
-          import re
-          manifest = Path(__import__("os").environ["PROJECT_DIR"]) / "proj.android/app/AndroidManifest.xml"
-          text = manifest.read_text()
-          pattern = r'<activity\b(?=[^>]*AppActivity)[^>]*>'
-          match = re.search(pattern, text)
-          if not match:
-              raise SystemExit("Could not find Cocos AppActivity declaration")
-          tag = match.group(0)
-          if "android:exported=" not in tag:
-              updated = tag[:-1] + ' android:exported="true">'
-              text = text[:match.start()] + updated + text[match.end():]
-              manifest.write_text(text)
+          import os
+          import xml.etree.ElementTree as ET
+          manifest = Path(os.environ["PROJECT_DIR"]) / "proj.android/app/AndroidManifest.xml"
+          tree = ET.parse(manifest)
+          root = tree.getroot()
+          ns = "{http://schemas.android.com/apk/res/android}"
+          found = False
+          for activity in root.findall(".//activity"):
+              is_launcher = False
+              for intent in activity.findall("intent-filter"):
+                  actions = {node.get(ns + "name") for node in intent.findall("action")}
+                  categories = {node.get(ns + "name") for node in intent.findall("category")}
+                  if "android.intent.action.MAIN" in actions and "android.intent.category.LAUNCHER" in categories:
+                      is_launcher = True
+                      break
+              if is_launcher:
+                  activity.set(ns + "exported", "true")
+                  found = True
+          if not found:
+              raise SystemExit("No MAIN/LAUNCHER activity found in generated manifest")
+          ET.register_namespace("android", "http://schemas.android.com/apk/res/android")
+          tree.write(manifest, encoding="utf-8", xml_declaration=True)
           PY
           sed -i 's/PROP_BUILD_TYPE=.*/PROP_BUILD_TYPE=cmake/' "$PROJECT_DIR/proj.android/gradle.properties" || true
           mkdir -p "$PROJECT_DIR/Resources"
