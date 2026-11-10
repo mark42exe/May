@@ -1,4 +1,4 @@
-name: Toy Attack ARM64 Port Validation (No APK)
+name: Toy Attack ARM64 APK Build and Validation
 
 on:
   workflow_dispatch:
@@ -380,6 +380,47 @@ jobs:
               if "RFBattleLayer.ccb" not in names and not any(n.endswith("/RFBattleLayer.ccb") for n in names):
                   raise SystemExit("APK missing recovered original battle scene")
               print("APK verification passed: ARM64 ELF library and original battle scene present")
+          PY
+
+      - name: Verify APK archive, signature, SDK levels, and native ELF alignment
+        run: |
+          set -euo pipefail
+          APK="$RUNNER_TEMP/final-apk/ToyAttack_ARM64.apk"
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          aapt dump badging "$APK" > "$RUNNER_TEMP/apk-badging.txt"
+          grep -q "package: name='com.animocabrands.robotfight.restored'" "$RUNNER_TEMP/apk-badging.txt"
+          grep -q "sdkVersion:'21'" "$RUNNER_TEMP/apk-badging.txt"
+          grep -q "targetSdkVersion:'24'" "$RUNNER_TEMP/apk-badging.txt"
+          apksigner verify --verbose "$APK"
+          zipalign -c -v 4 "$APK"
+          python3 - "$APK" <<'PY'
+          from zipfile import ZipFile
+          import struct, sys
+          with ZipFile(sys.argv[1]) as z:
+              name = "lib/arm64-v8a/libMyGame.so"
+              data = z.read(name)
+              if data[:4] != b"\\x7fELF" or data[4] != 2 or data[5] != 1:
+                  raise SystemExit("Expected ELF64 little-endian native library")
+              machine = struct.unpack_from("<H", data, 18)[0]
+              if machine != 183:
+                  raise SystemExit(f"Expected AArch64 machine 183, got {machine}")
+              phoff = struct.unpack_from("<Q", data, 32)[0]
+              phentsize, phnum = struct.unpack_from("<HH", data, 54)
+              if phentsize < 56 or phnum == 0:
+                  raise SystemExit("Invalid ELF program header table")
+              loads = []
+              for i in range(phnum):
+                  off = phoff + i * phentsize
+                  p_type = struct.unpack_from("<I", data, off)[0]
+                  p_align = struct.unpack_from("<Q", data, off + 48)[0]
+                  if p_type == 1:
+                      loads.append(p_align)
+              if not loads or any(a < 0x4000 or a & (a - 1) for a in loads):
+                  raise SystemExit(f"ELF PT_LOAD alignment below 16 KB or invalid: {loads}")
+              if "RFBattleLayer.ccb" not in z.namelist():
+                  raise SystemExit("Missing recovered RFBattleLayer.ccb scene")
+              print("APK validation passed; ELF PT_LOAD alignment:", loads)
           PY
 
       - name: Upload Toy Attack ARM64 APK
