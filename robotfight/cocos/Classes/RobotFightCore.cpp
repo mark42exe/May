@@ -136,8 +136,9 @@ int LocalProfile::wins() { return cocos2d::UserDefault::getInstance()->getIntege
 int LocalProfile::losses() { return cocos2d::UserDefault::getInstance()->getIntegerForKey("rf.losses", 0); }
 
 int LocalProfile::unlockedStages() {
-    return std::clamp(cocos2d::UserDefault::getInstance()->getIntegerForKey(
-        "rf.campaign.unlocked", 1), 1, 6);
+    const int saved = cocos2d::UserDefault::getInstance()->getIntegerForKey(
+        "rf.campaign.unlocked", 1);
+    return std::max(1, std::min(6, saved));
 }
 
 bool LocalProfile::isStageUnlocked(int stageIndex) {
