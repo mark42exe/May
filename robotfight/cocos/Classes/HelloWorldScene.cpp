@@ -198,6 +198,31 @@ bool HelloWorld::init() {
     botName->setTextColor(Color4B(255, 145, 105, 255));
     addChild(botName);
 
+    // Per-part condition indicators mirror the original PLAYER / OPPONENT HUD.
+    const char* partGlyphs[] = {"B", "C", "H", "F", "R"};
+    auto makePartIndicators = [&](float centerX, float y) {
+        std::array<DrawNode*, 5> indicators{};
+        for (int i = 0; i < 5; ++i) {
+            auto cell = DrawNode::create();
+            cell->setPosition(centerX + (i - 2) * 27.0f, y);
+            addChild(cell, 15);
+            auto glyph = Label::createWithSystemFont(partGlyphs[i], "Arial", 10);
+            glyph->setTextColor(Color4B(12, 20, 28, 255));
+            glyph->setPosition(Vec2::ZERO);
+            cell->addChild(glyph, 1);
+            indicators[i] = cell;
+        }
+        return indicators;
+    };
+    auto playerPartIndicators = makePartIndicators(w * 0.25f, h * 0.795f);
+    auto opponentPartIndicators = makePartIndicators(w * 0.75f, h * 0.795f);
+
+    auto battleEvent = Label::createWithSystemFont("", "Arial-BOLD", 30);
+    battleEvent->setTextColor(Color4B(255, 190, 65, 255));
+    battleEvent->setPosition(w * 0.5f, h * 0.67f);
+    battleEvent->setOpacity(0);
+    addChild(battleEvent, 80);
+
     // Prefer original Toy Attack component art when the optional asset pack is present.
     // The fallback remains a simple diagnostic silhouette until the full scene reader is ready.
     auto makeRobotView = [&](float x, float y, bool enemy) -> Node* {
@@ -406,6 +431,27 @@ bool HelloWorld::init() {
         botHp->setString(StringUtils::format("HP %d   ENERGY %d",
             battle->botTotalHp(), battle->botState().energy));
         coins->setString(StringUtils::format("COINS  %d", LocalProfile::coins()));
+
+        const auto updateParts = [](const std::array<DrawNode*, 5>& cells,
+                                    const robotfight::RobotState& state,
+                                    const RobotBuild& build) {
+            for (std::size_t i = 0; i < cells.size(); ++i) {
+                const float ratio = static_cast<float>(std::max(0, state.hp[i])) /
+                    static_cast<float>(std::max(1, build.parts[i].health));
+                const Color4F tint = ratio <= 0.0f ? Color4F(0.20f, 0.23f, 0.27f, 0.95f) :
+                    ratio < 0.25f ? Color4F(0.92f, 0.20f, 0.16f, 1.0f) :
+                    ratio < 0.60f ? Color4F(0.98f, 0.65f, 0.16f, 1.0f) :
+                                    Color4F(0.22f, 0.78f, 0.58f, 1.0f);
+                const Vec2 hex[] = {
+                    Vec2(-10, 0), Vec2(-5, 9), Vec2(5, 9),
+                    Vec2(10, 0), Vec2(5, -9), Vec2(-5, -9)
+                };
+                cells[i]->clear();
+                cells[i]->drawSolidPoly(hex, 6, tint);
+            }
+        };
+        updateParts(playerPartIndicators, battle->playerState(), playerBuild);
+        updateParts(opponentPartIndicators, battle->botState(), botBuild);
     };
     refresh();
 
@@ -414,7 +460,22 @@ bool HelloWorld::init() {
         label->setTextColor(Color4B(255, 255, 255, 255));
         auto item = MenuItemLabel::create(label, [=](Ref*) {
             if (battle->outcome() != BattleOutcome::Ongoing) return;
+            const int playerHeadBefore = battle->playerState().hp[2];
+            const int opponentHeadBefore = battle->botState().hp[2];
             const auto result = battle->step(command);
+            const bool playerHeadDestroyed = playerHeadBefore > 0 && battle->playerState().hp[2] <= 0;
+            const bool opponentHeadDestroyed = opponentHeadBefore > 0 && battle->botState().hp[2] <= 0;
+            if (playerHeadDestroyed || opponentHeadDestroyed) {
+                battleEvent->stopAllActions();
+                battleEvent->setString("HEAD DESTROYED");
+                battleEvent->setOpacity(255);
+                battleEvent->setScale(1.0f);
+                battleEvent->runAction(Sequence::create(
+                    ScaleTo::create(0.12f, 1.18f),
+                    DelayTime::create(0.85f),
+                    FadeOut::create(0.28f), nullptr));
+                playOriginalSoundEvent("partsBroken");
+            }
             if (result.playerDamage > 0) {
                 (*playerRobot)->runAction(Sequence::create(
                     MoveBy::create(0.10f, Vec2(24, 0)),
