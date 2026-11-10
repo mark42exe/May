@@ -483,13 +483,14 @@ bool HelloWorld::init() {
                 panel->addChild(preview, 1);
             }
             const std::string stageName = stageNames[i];
+            const std::string stageId = stageIds[i];
             auto label = Label::createWithSystemFont(stageName, "Arial", 16);
             auto item = MenuItemLabel::create(label, [=](Ref*) {
-                UserDefault::getInstance()->setStringForKey("rf.stage", stageIds[i]);
+                UserDefault::getInstance()->setStringForKey("rf.stage", stageId);
                 UserDefault::getInstance()->flush();
                 if (arena) {
                     const std::string texturePath = std::string("original/scene_thumbnail_") +
-                                                    std::string(stageIds[i]).substr(6) + ".png";
+                                                    stageId.substr(6) + ".png";
                     if (auto texture = Director::getInstance()->getTextureCache()->addImage(texturePath)) {
                         arena->setTexture(texture);
                         arena->setTextureRect(Rect(0, 0, texture->getContentSize().width,
