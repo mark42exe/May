@@ -45,6 +45,24 @@ jobs:
           cp -a "$RUNNER_TEMP/cocos2d-x" "$RUNNER_TEMP/rf-cocos/cocos2d"
           echo "PROJECT_DIR=$RUNNER_TEMP/rf-cocos" >> "$GITHUB_ENV"
 
+      - name: Patch legacy Cocos audio header for modern ARM64 compiler
+        run: |
+          set -euo pipefail
+          SOURCE="$PROJECT_DIR/cocos2d/cocos/audio/android/mp3reader.cpp"
+          test -s "$SOURCE"
+          python3 - "$SOURCE" <<'PY'
+          from pathlib import Path
+          import sys
+          path = Path(sys.argv[1])
+          source = path.read_text()
+          if "#include <string.h>" not in source:
+              source = "#include <string.h>\\n" + source
+              path.write_text(source)
+          if "memcmp(\"ID3\"" not in source or "memcpy(buf" not in source:
+              raise SystemExit("Unexpected mp3reader.cpp; refusing an unsafe patch")
+          print("Verified string.h declarations for memcmp/memcpy")
+          PY
+
       - name: Install Cocos 3.15.1 third-party native dependencies
         run: |
           set -euo pipefail
