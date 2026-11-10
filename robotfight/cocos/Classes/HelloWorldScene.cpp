@@ -1,7 +1,7 @@
 #include "HelloWorldScene.h"
 #include "RobotFightCore.h"
 
-#include <array>
+#include <memory>
 #include <string>
 
 USING_NS_CC;
@@ -24,8 +24,6 @@ RobotBuild makeBuild(const std::string& id, const std::string& name,
 }
 }
 
-class BattleScene final : public HelloWorld {
-};
 
 Scene* HelloWorld::createScene() {
     return HelloWorld::create();
