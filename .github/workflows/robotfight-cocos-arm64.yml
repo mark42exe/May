@@ -46,7 +46,9 @@ jobs:
           # GitHub Actions runners may block that port, so rewrite it to HTTPS.
           git config --global url."https://github.com/".insteadOf git://github.com/
           git submodule update --init --recursive
-          python3 download-deps.py
+          # The dependency helper prompts whether to keep its downloaded ZIP;
+          # CI is non-interactive, so answer 'no' explicitly.
+          printf 'no\\n' | python3 download-deps.py
           echo "PROJECT_DIR=$RUNNER_TEMP/rf-cocos" >> "$GITHUB_ENV"
 
       - name: Configure native ARM64 project
