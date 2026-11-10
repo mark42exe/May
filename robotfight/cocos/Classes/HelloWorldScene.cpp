@@ -225,16 +225,19 @@ bool HelloWorld::init() {
 
     // Resolve each robot's appearance independently. The opponent must use its own
     // recovered part IDs rather than accidentally mirroring the player's loadout.
-    const std::array<std::string, 5> playerPartIds = {{
-        UserDefault::getInstance()->getStringForKey("rf.part.base", "2_0"),
-        UserDefault::getInstance()->getStringForKey("rf.part.core", "1_0"),
-        UserDefault::getInstance()->getStringForKey("rf.part.head", "3_5"),
-        UserDefault::getInstance()->getStringForKey("rf.part.front", "0_0"),
-        UserDefault::getInstance()->getStringForKey("rf.part.back", "0_3")
-    }};
+    const auto readPlayerPartIds = []() {
+        return std::array<std::string, 5>{{
+            UserDefault::getInstance()->getStringForKey("rf.part.base", "2_0"),
+            UserDefault::getInstance()->getStringForKey("rf.part.core", "1_0"),
+            UserDefault::getInstance()->getStringForKey("rf.part.head", "3_5"),
+            UserDefault::getInstance()->getStringForKey("rf.part.front", "0_0"),
+            UserDefault::getInstance()->getStringForKey("rf.part.back", "0_3")
+        }};
+    };
     const std::array<std::string, 5> botPartIds = {{"1_0", "1_0", "3_5", "0_0", "1_0"}};
-    const std::string playerBatteryId =
-        UserDefault::getInstance()->getStringForKey("rf.part.battery", "0_0");
+    const auto readPlayerBatteryId = []() {
+        return UserDefault::getInstance()->getStringForKey("rf.part.battery", "0_0");
+    };
     const std::string botBatteryId = "0_1";
 
     // Prefer original Toy Attack component art. The diagnostic fallback is used
@@ -276,7 +279,7 @@ bool HelloWorld::init() {
         robot->setPosition(x, y);
         return robot;
     };
-    auto playerRobot = std::make_shared<Node*>(makeRobotView(w * 0.25f, h * 0.55f, false, playerPartIds, playerBatteryId));
+    auto playerRobot = std::make_shared<Node*>(makeRobotView(w * 0.25f, h * 0.55f, false, readPlayerPartIds(), readPlayerBatteryId()));
     addChild(*playerRobot);
     auto botRobot = std::make_shared<Node*>(makeRobotView(w * 0.75f, h * 0.55f, true, botPartIds, botBatteryId));
     addChild(*botRobot);
@@ -296,7 +299,7 @@ bool HelloWorld::init() {
         heading->setPosition(w * 0.5f, h * 0.88f);
         heading->setTextColor(Color4B(110, 220, 255, 255));
         panel->addChild(heading);
-        auto garageRobot = std::make_shared<Node*>(makeRobotView(w * 0.84f, h * 0.48f, false, playerPartIds, playerBatteryId));
+        auto garageRobot = std::make_shared<Node*>(makeRobotView(w * 0.84f, h * 0.48f, false, readPlayerPartIds(), readPlayerBatteryId()));
         panel->addChild(*garageRobot, 5);
 
         const auto garageCatalog =
@@ -370,10 +373,10 @@ bool HelloWorld::init() {
                 UserDefault::getInstance()->flush();
                 current->setString(value);
                 if (*playerRobot) (*playerRobot)->removeFromParent();
-                *playerRobot = makeRobotView(w * 0.25f, h * 0.55f, false, playerPartIds, playerBatteryId);
+                *playerRobot = makeRobotView(w * 0.25f, h * 0.55f, false, readPlayerPartIds(), readPlayerBatteryId());
                 addChild(*playerRobot, 2);
                 if (*garageRobot) (*garageRobot)->removeFromParent();
-                *garageRobot = makeRobotView(w * 0.84f, h * 0.48f, false, playerPartIds, playerBatteryId);
+                *garageRobot = makeRobotView(w * 0.84f, h * 0.48f, false, readPlayerPartIds(), readPlayerBatteryId());
                 panel->addChild(*garageRobot, 5);
             };
             auto leftLabel = Label::createWithSystemFont("<", "Arial", 24);
