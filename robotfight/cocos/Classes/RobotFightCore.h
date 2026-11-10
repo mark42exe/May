@@ -26,6 +26,7 @@ struct RobotBuild {
 struct RobotState {
     std::array<int, static_cast<std::size_t>(PartSlot::Count)> hp{};
     int energy = 100;
+    int maxEnergy = 100;
     int wins = 0;
     int losses = 0;
 };
