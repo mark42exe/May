@@ -200,7 +200,7 @@ jobs:
           files = manifest["imported_files"]
           if files < 3000:
               raise SystemExit(f"Original resource import incomplete: only {files} files")
-          for required in ("RFBattleLayer.ccb", "RFMainLayer.ccb", "RFEditorLayer.ccb", "RFPartsData.plist"):
+          for required in ("RFBattleLayer.ccb", "RFMainLayer.ccb", "RFEditorLayer.ccb", "RFPartsData.plist", "Normal1.ogg", "bgm_scene_battleFight.wav", "sfx_btn_press.ogg"):
               if not (root / required).is_file():
                   raise SystemExit(f"Required original resource missing: {required}")
           print("Verified original resource import:", files, "files")
