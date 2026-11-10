@@ -1,72 +1,31 @@
 #include "HelloWorldScene.h"
+#include "RobotFightCore.h"
 
-#include <algorithm>
-#include <cctype>
-#include <sstream>
+#include <array>
 #include <string>
-#include <vector>
 
 USING_NS_CC;
 
 namespace {
-struct SceneInspection {
-    bool loaded = false;
-    bool rccb = false;
-    std::size_t bytes = 0;
-    std::size_t printableStrings = 0;
-    std::size_t resourceRefs = 0;
-    std::string summary;
+using robotfight::Battle;
+using robotfight::BattleOutcome;
+using robotfight::Command;
+using robotfight::LocalProfile;
+using robotfight::PartStats;
+using robotfight::RobotBuild;
+
+RobotBuild makeBuild(const std::string& id, const std::string& name,
+                     int hp, int attack, int defense) {
+    RobotBuild build;
+    build.id = id;
+    build.displayName = name;
+    for (auto& part : build.parts) part = PartStats{hp, attack, defense, 100};
+    return build;
+}
+}
+
+class BattleScene final : public HelloWorld {
 };
-
-SceneInspection inspectOriginalBattleScene() {
-    SceneInspection out;
-    Data data = FileUtils::getInstance()->getDataFromFile("RFBattleLayer.ccb");
-    if (data.isNull() || data.getSize() < 16) {
-        out.summary = "RFBattleLayer.ccb not found in app Resources";
-        return out;
-    }
-
-    out.loaded = true;
-    out.bytes = data.getSize();
-    const unsigned char* bytes = data.getBytes();
-    out.rccb = bytes[4] == 'R' && bytes[5] == 'C' &&
-               bytes[6] == 'C' && bytes[7] == 'B';
-
-    std::vector<std::string> strings;
-    std::size_t i = 0;
-    while (i < out.bytes) {
-        while (i < out.bytes && (bytes[i] < 0x20 || bytes[i] > 0x7e)) ++i;
-        const std::size_t begin = i;
-        while (i < out.bytes && bytes[i] >= 0x20 && bytes[i] <= 0x7e) ++i;
-        if (i - begin >= 4) {
-            strings.emplace_back(reinterpret_cast<const char*>(bytes + begin), i - begin);
-        }
-    }
-    out.printableStrings = strings.size();
-
-    const char* extensions[] = {".webp", ".png", ".jpg", ".jpeg", ".ttf", ".fnt", ".plist", ".json"};
-    for (const auto& value : strings) {
-        for (const char* ext : extensions) {
-            const std::size_t n = std::char_traits<char>::length(ext);
-            if (value.size() >= n && value.compare(value.size() - n, n, ext) == 0) {
-                ++out.resourceRefs;
-                break;
-            }
-        }
-    }
-
-    std::ostringstream text;
-    text << "Original battle scene loaded\n"
-         << "Signature: " << (out.rccb ? "RCCB" : "unknown") << "\n"
-         << "Binary size: " << out.bytes << " bytes\n"
-         << "Printable records: " << out.printableStrings << "\n"
-         << "Resource references: " << out.resourceRefs << "\n\n"
-         << "This is a native Cocos2d-x ARM64 scene-loader test.\n"
-         << "The proprietary RCCB object hierarchy is not decoded yet.";
-    out.summary = text.str();
-    return out;
-}
-}
 
 Scene* HelloWorld::createScene() {
     return HelloWorld::create();
@@ -75,34 +34,122 @@ Scene* HelloWorld::createScene() {
 bool HelloWorld::init() {
     if (!Scene::init()) return false;
 
-    const auto size = Director::getInstance()->getVisibleSize();
+    const auto visible = Director::getInstance()->getVisibleSize();
     const auto origin = Director::getInstance()->getVisibleOrigin();
+    const float w = visible.width;
+    const float h = visible.height;
 
-    auto background = DrawNode::create();
-    background->drawSolidRect(Vec2::ZERO, Vec2(size.width, size.height),
-                              Color4F(0.025f, 0.04f, 0.075f, 1.0f));
-    addChild(background, -1);
+    auto bg = DrawNode::create();
+    bg->drawSolidRect(Vec2(0, 0), Vec2(w, h), Color4F(0.025f, 0.035f, 0.065f, 1));
+    bg->drawSolidRect(Vec2(0, h * 0.70f), Vec2(w, h), Color4F(0.055f, 0.085f, 0.13f, 1));
+    bg->drawSolidRect(Vec2(0, h * 0.16f), Vec2(w, h * 0.20f), Color4F(0.12f, 0.16f, 0.20f, 1));
+    addChild(bg, -2);
 
-    auto heading = Label::createWithSystemFont("ROBOT FIGHT / NATIVE PORT", "Arial", 34);
-    heading->setTextColor(Color4B(230, 240, 255, 255));
-    heading->setAnchorPoint(Vec2(0.5f, 1.0f));
-    heading->setPosition(Vec2(origin.x + size.width * 0.5f, origin.y + size.height - 42));
-    addChild(heading);
+    auto title = Label::createWithSystemFont("TOY ATTACK  /  OFFLINE ARENA", "Arial", 26);
+    title->setTextColor(Color4B(235, 242, 255, 255));
+    title->setPosition(origin + Vec2(w * 0.5f, h - 28));
+    addChild(title);
 
-    const auto inspection = inspectOriginalBattleScene();
-    auto detail = Label::createWithSystemFont(inspection.summary, "Arial", 21);
-    detail->setTextColor(Color4B(160, 190, 220, 255));
-    detail->setAlignment(TextHAlignment::CENTER, TextVAlignment::CENTER);
-    detail->setDimensions(size.width * 0.86f, size.height * 0.62f);
-    detail->setPosition(Vec2(origin.x + size.width * 0.5f, origin.y + size.height * 0.48f));
-    addChild(detail);
+    auto playerBuild = makeBuild("player_local", "PLAYER", 100, 42, 28);
+    auto botBuild = makeBuild("bot_training", "TRAINING BOT", 92, 38, 24);
+    auto battle = std::make_shared<Battle>(playerBuild, botBuild, 0x51A7u);
 
-    auto footer = Label::createWithSystemFont(
-        "Offline ARM64 runtime validation  |  Original scene data",
-        "Arial", 16);
-    footer->setTextColor(Color4B(100, 130, 165, 255));
-    footer->setPosition(Vec2(origin.x + size.width * 0.5f, origin.y + 28));
-    addChild(footer);
+    auto playerName = Label::createWithSystemFont("PLAYER", "Arial", 19);
+    playerName->setPosition(w * 0.25f, h * 0.84f);
+    playerName->setTextColor(Color4B(95, 210, 255, 255));
+    addChild(playerName);
+
+    auto botName = Label::createWithSystemFont("OPPONENT", "Arial", 19);
+    botName->setPosition(w * 0.75f, h * 0.84f);
+    botName->setTextColor(Color4B(255, 145, 105, 255));
+    addChild(botName);
+
+    auto playerRobot = DrawNode::create();
+    playerRobot->drawSolidRect(Vec2(-42, -28), Vec2(42, 28), Color4F(0.10f, 0.55f, 0.78f, 1));
+    playerRobot->drawSolidRect(Vec2(-25, 28), Vec2(25, 65), Color4F(0.15f, 0.72f, 0.92f, 1));
+    playerRobot->drawSolidCircle(Vec2(-12, 47), 5, 0, 16, Color4F::WHITE);
+    playerRobot->drawSolidCircle(Vec2(12, 47), 5, 0, 16, Color4F::WHITE);
+    playerRobot->setPosition(w * 0.25f, h * 0.55f);
+    addChild(playerRobot);
+
+    auto botRobot = DrawNode::create();
+    botRobot->drawSolidRect(Vec2(-42, -28), Vec2(42, 28), Color4F(0.72f, 0.25f, 0.16f, 1));
+    botRobot->drawSolidRect(Vec2(-25, 28), Vec2(25, 65), Color4F(0.90f, 0.42f, 0.22f, 1));
+    botRobot->drawSolidCircle(Vec2(-12, 47), 5, 0, 16, Color4F::WHITE);
+    botRobot->drawSolidCircle(Vec2(12, 47), 5, 0, 16, Color4F::WHITE);
+    botRobot->setPosition(w * 0.75f, h * 0.55f);
+    addChild(botRobot);
+
+    auto coins = Label::createWithSystemFont("", "Arial", 17);
+    coins->setAnchorPoint(Vec2(1, 0.5f));
+    coins->setPosition(w - 18, h - 28);
+    coins->setTextColor(Color4B(255, 215, 90, 255));
+    addChild(coins);
+
+    auto playerHp = Label::createWithSystemFont("", "Arial", 16);
+    playerHp->setPosition(w * 0.25f, h * 0.77f);
+    addChild(playerHp);
+    auto botHp = Label::createWithSystemFont("", "Arial", 16);
+    botHp->setPosition(w * 0.75f, h * 0.77f);
+    addChild(botHp);
+
+    auto status = Label::createWithSystemFont("Choose your move", "Arial", 18);
+    status->setPosition(w * 0.5f, h * 0.32f);
+    status->setTextColor(Color4B(230, 235, 245, 255));
+    addChild(status);
+
+    auto refresh = [=]() {
+        playerHp->setString(StringUtils::format("HP %d   ENERGY %d",
+            battle->playerTotalHp(), battle->playerState().energy));
+        botHp->setString(StringUtils::format("HP %d   ENERGY %d",
+            battle->botTotalHp(), battle->botState().energy));
+        coins->setString(StringUtils::format("COINS  %d", LocalProfile::coins()));
+    };
+    refresh();
+
+    auto makeButton = [&](const std::string& text, Command command, float x) {
+        auto label = Label::createWithSystemFont(text, "Arial", 18);
+        label->setTextColor(Color4B(255, 255, 255, 255));
+        auto item = MenuItemLabel::create(label, [=](Ref*) {
+            if (battle->outcome() != BattleOutcome::Ongoing) return;
+            const auto result = battle->step(command);
+            status->setString(StringUtils::format("YOU: %s   BOT: %s",
+                command == Command::Strike ? "STRIKE" :
+                command == Command::HeavyStrike ? "HEAVY" :
+                command == Command::Boost ? "BOOST" : "GUARD",
+                result.botCommand == Command::Strike ? "STRIKE" :
+                result.botCommand == Command::HeavyStrike ? "HEAVY" :
+                result.botCommand == Command::Boost ? "BOOST" : "GUARD"));
+            if (result.outcome == BattleOutcome::PlayerWin) {
+                LocalProfile::recordResult(result.outcome);
+                status->setString("VICTORY  +2,000 COINS");
+            } else if (result.outcome == BattleOutcome::BotWin) {
+                LocalProfile::recordResult(result.outcome);
+                status->setString("DEFEAT  -  NO COINS AWARDED");
+            } else if (result.outcome == BattleOutcome::Draw) {
+                status->setString("DRAW  -  NO COINS AWARDED");
+            }
+            refresh();
+        });
+        item->setPosition(x, h * 0.20f);
+        item->setContentSize(Size(w * 0.17f, 48));
+        return item;
+    };
+
+    auto menu = Menu::create(
+        makeButton("STRIKE", Command::Strike, w * 0.20f),
+        makeButton("HEAVY", Command::HeavyStrike, w * 0.40f),
+        makeButton("BOOST", Command::Boost, w * 0.60f),
+        makeButton("GUARD", Command::Guard, w * 0.80f),
+        nullptr);
+    menu->setPosition(Vec2::ZERO);
+    addChild(menu, 5);
+
+    auto note = Label::createWithSystemFont(
+        "Native combat loop test  |  Local profile  |  ARM64", "Arial", 12);
+    note->setTextColor(Color4B(115, 135, 160, 255));
+    note->setPosition(w * 0.5f, 16);
+    addChild(note);
 
     return true;
 }
