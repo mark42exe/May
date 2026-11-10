@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 USING_NS_CC;
 
@@ -76,11 +77,11 @@ bool HelloWorld::init() {
     auto makeRobotView = [&](float x, float y, bool enemy) -> Node* {
         auto robot = Node::create();
         const struct PartPlacement { const char* file; Vec2 position; float scale; } parts[] = {
-            {"original/base_2_0.png", Vec2(0, -42), 0.72f},
-            {"original/core_1_0.png", Vec2(0, 4), 0.72f},
-            {"original/head_3_5.png", Vec2(0, 52), 0.72f},
-            {"original/arm_b_0_3.png", Vec2(-61, 4), 0.62f},
-            {"original/arm_f_0_0.png", Vec2(61, 4), 0.62f},
+            {(std::string("original/base_") + UserDefault::getInstance()->getStringForKey("rf.part.base", "2_0") + ".png").c_str(), Vec2(0, -42), 0.72f},
+            {(std::string("original/core_") + UserDefault::getInstance()->getStringForKey("rf.part.core", "1_0") + ".png").c_str(), Vec2(0, 4), 0.72f},
+            {(std::string("original/head_") + UserDefault::getInstance()->getStringForKey("rf.part.head", "3_5") + ".png").c_str(), Vec2(0, 52), 0.72f},
+            {(std::string("original/arm_b_") + UserDefault::getInstance()->getStringForKey("rf.part.back", "0_3") + ".png").c_str(), Vec2(-61, 4), 0.62f},
+            {(std::string("original/arm_f_") + UserDefault::getInstance()->getStringForKey("rf.part.front", "0_0") + ".png").c_str(), Vec2(61, 4), 0.62f},
         };
         int loaded = 0;
         for (const auto& part : parts) {
@@ -106,7 +107,8 @@ bool HelloWorld::init() {
         robot->setPosition(x, y);
         return robot;
     };
-    addChild(makeRobotView(w * 0.25f, h * 0.55f, false));
+    auto playerRobot = std::make_shared<Node*>(makeRobotView(w * 0.25f, h * 0.55f, false));
+    addChild(*playerRobot);
     addChild(makeRobotView(w * 0.75f, h * 0.55f, true));
 
     auto coins = Label::createWithSystemFont("", "Arial", 17);
