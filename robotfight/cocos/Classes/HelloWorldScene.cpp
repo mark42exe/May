@@ -684,19 +684,19 @@ bool HelloWorld::init() {
         AudioEngine::play2d("original/sfx_battle_startBell.ogg");
         home->removeFromParent();
     });
-    fightItem->setPosition(w * 0.5f, h * 0.52f);
+    fightItem->setPosition(w * 0.73f, h * 0.43f);
     auto labLabel = Label::createWithSystemFont("ROBOT LAB", "Arial", 20);
     auto labItem = MenuItemLabel::create(labLabel, [=](Ref*) { openGarage(); });
-    labItem->setPosition(w * 0.5f, h * 0.41f);
+    labItem->setPosition(w * 0.30f, h * 0.27f);
     auto stageLabel = Label::createWithSystemFont("STAGES", "Arial", 20);
     auto stageItem = MenuItemLabel::create(stageLabel, [=](Ref*) { openStages(); });
-    stageItem->setPosition(w * 0.5f, h * 0.31f);
+    stageItem->setPosition(w * 0.48f, h * 0.13f);
     auto profileLabel = Label::createWithSystemFont("PROFILE", "Arial", 17);
     auto profileItem = MenuItemLabel::create(profileLabel, [=](Ref*) {
         infoPanel("PILOT PROFILE", StringUtils::format("COINS  %d\\nWINS  %d\\nLOSSES  %d",
             LocalProfile::coins(), LocalProfile::wins(), LocalProfile::losses()));
     });
-    profileItem->setPosition(w * 0.36f, h * 0.19f);
+    profileItem->setPosition(w * 0.68f, h * 0.13f);
     auto questLabel = Label::createWithSystemFont("QUEST DATA", "Arial", 17);
     auto questItem = MenuItemLabel::create(questLabel, [=](Ref*) {
         const auto questData = FileUtils::getInstance()->getValueMapFromFile("original/RFQuestData.plist");
@@ -709,7 +709,7 @@ bool HelloWorld::init() {
         infoPanel("RECOVERED QUEST DATA", StringUtils::format("%d original quest entries\\n%zu achievement groups\\nQuest progression is still being rebuilt.",
             static_cast<int>(questCount), achievementGroups));
     });
-    questItem->setPosition(w * 0.64f, h * 0.19f);
+    questItem->setPosition(w * 0.86f, h * 0.13f);
     auto homeMenu = Menu::create(fightItem, labItem, stageItem, profileItem, questItem, nullptr);
     homeMenu->setPosition(Vec2::ZERO);
     home->addChild(homeMenu);
