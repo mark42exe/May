@@ -19,6 +19,33 @@ using robotfight::PartStats;
 using robotfight::RobotBuild;
 
 
+
+void playOriginalSoundEvent(const std::string& eventName) {
+    const auto soundData = FileUtils::getInstance()->getValueMapFromFile("original/SoundEvents.plist");
+    const auto eventsIt = soundData.find("events");
+    if (eventsIt == soundData.end()) return;
+    const auto events = eventsIt->second.asValueMap();
+    const auto eventIt = events.find(eventName);
+    if (eventIt == events.end()) return;
+    const auto event = eventIt->second.asValueMap();
+    const auto tracksIt = event.find("localTracks");
+    if (tracksIt == event.end()) return;
+
+    float gain = 1.0f;
+    const auto effectsIt = event.find("effects");
+    if (effectsIt != event.end() && !effectsIt->second.asValueVector().empty()) {
+        const auto effect = effectsIt->second.asValueVector().front().asValueMap();
+        const auto gainIt = effect.find("gain");
+        if (gainIt != effect.end()) gain = gainIt->second.asFloat();
+    }
+    const float volume = std::min(1.0f, std::max(0.0f, gain * 0.5f));
+    for (const auto& track : tracksIt->second.asValueVector()) {
+        const std::string file = "original/" + track.asString();
+        if (FileUtils::getInstance()->isFileExist(file))
+            AudioEngine::play2d(file, false, volume);
+    }
+}
+
 Sprite* playOriginalEffect(Node* parent, const std::string& animationFile,
                           const Vec2& position, float scale, bool loop = false) {
     if (!parent) return nullptr;
@@ -219,7 +246,7 @@ bool HelloWorld::init() {
 
     // Garage: cycle through original recovered part identifiers and persist each choice.
     auto openGarage = [=]() {
-        AudioEngine::play2d("original/sfx_btn_press.ogg");
+        playOriginalSoundEvent("press");
         auto panel = Node::create();
         addChild(panel, 300);
         auto shade = DrawNode::create();
@@ -410,9 +437,9 @@ bool HelloWorld::init() {
                 playOriginalEffect(this, "boost_ef1_default_Anim.plist",
                                    (*playerRobot)->getPosition() + Vec2(-25, -48), 1.0f);
             if (command == Command::HeavyStrike)
-                AudioEngine::play2d("original/sfx_battle_onHitHeavy1.ogg");
+                playOriginalSoundEvent("onHitSuper1");
             else if (command != Command::Guard)
-                AudioEngine::play2d("original/Normal1.ogg");
+                playOriginalSoundEvent("onHitNormal1");
             status->setString(StringUtils::format("YOU: %s   BOT: %s",
                 command == Command::Strike ? "STRIKE" :
                 command == Command::HeavyStrike ? "HEAVY" :
@@ -425,13 +452,13 @@ bool HelloWorld::init() {
                 status->setString("VICTORY  +2,000 COINS");
                 playOriginalEffect(this, "explosion_ef1_default_Anim.plist",
                                    (*botRobot)->getPosition(), 1.8f);
-                AudioEngine::play2d("original/sfx_battle_robotdestroy.ogg");
+                playOriginalSoundEvent("robotDestroy");
             } else if (result.outcome == BattleOutcome::BotWin) {
                 LocalProfile::recordResult(result.outcome);
                 status->setString("DEFEAT  -  NO COINS AWARDED");
                 playOriginalEffect(this, "explosion_ef2_default_Anim.plist",
                                    (*playerRobot)->getPosition(), 1.8f);
-                AudioEngine::play2d("original/sfx_battle_destroy.ogg");
+                playOriginalSoundEvent("partsBroken");
             } else if (result.outcome == BattleOutcome::Draw) {
                 status->setString("DRAW  -  NO COINS AWARDED");
             }
