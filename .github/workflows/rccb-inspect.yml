@@ -8,6 +8,7 @@ on:
       - ".github/workflows/rccb-inspect.yml"
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
@@ -18,16 +19,34 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Download original game workspace release
+      - name: Download verified RCCB scene artifact
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download --repo "${GITHUB_REPOSITORY}" --pattern "RobotFight_Original_APK_Integrated_ARM64_Workspace_20261110.zip" --dir /tmp/source
-      - name: Extract original scene files
+          gh run download 42789600523 --repo "${GITHUB_REPOSITORY}" --name "RobotFight-Original-RCCB-Scenes" --dir /tmp/rf-artifact
+      - name: Extract nested scene archive
         run: |
           mkdir -p /tmp/rf-source
-          unzip -q /tmp/source/RobotFight_Original_APK_Integrated_ARM64_Workspace_20261110.zip -d /tmp/rf-source
-          find /tmp/rf-source -type f -name '*.ccb' | wc -l
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, BadZipFile
+          import shutil
+          root = Path("/tmp/rf-artifact")
+          out = Path("/tmp/rf-source")
+          archives = list(root.rglob("*.zip"))
+          if not archives:
+              raise SystemExit("No scene ZIP found in downloaded workflow artifact")
+          for archive in archives:
+              try:
+                  with ZipFile(archive) as z:
+                      z.extractall(out)
+              except BadZipFile:
+                  continue
+          scenes = list(out.rglob("*.ccb"))
+          print(f"Recovered RCCB scene files: {len(scenes)}")
+          if len(scenes) < 100:
+              raise SystemExit("Expected at least 100 original .ccb scenes")
+          PY
       - name: Inspect RCCB scenes
         run: |
           python tools/inspect_rccb.py /tmp/rf-source --output rccb-scene-report.json
