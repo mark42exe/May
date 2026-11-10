@@ -371,7 +371,7 @@ jobs:
               machine = struct.unpack_from("<H", data, 18)[0]
               if machine != 183:
                   raise SystemExit(f"Native library machine is not AArch64: {machine}")
-              if not any(n.endswith("/RFBattleLayer.ccb") for n in names):
+              if "RFBattleLayer.ccb" not in names and not any(n.endswith("/RFBattleLayer.ccb") for n in names):
                   raise SystemExit("APK missing recovered original battle scene")
               print("APK verification passed: ARM64 ELF library and original battle scene present")
           PY
