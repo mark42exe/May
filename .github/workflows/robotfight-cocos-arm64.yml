@@ -158,24 +158,53 @@ jobs:
           shutil.copy2(battle[0], target / "RFBattleLayer.ccb")
           PY
 
-      - name: Import original Toy Attack assets when the source pack is present
+      - name: Fetch recovered original Toy Attack asset APK
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          set -e
-          INPUT=""
-          if [ -f "robotfight/original_assets/RobotFight_full_named_assets.zip" ]; then
-            INPUT="robotfight/original_assets/RobotFight_full_named_assets.zip"
-          elif [ -f "robotfight/original_assets/toy_attack.apk" ]; then
-            INPUT="robotfight/original_assets/toy_attack.apk"
-          elif [ -f "robotfight/original_assets/gamedata.dca" ]; then
-            INPUT="robotfight/original_assets/gamedata.dca"
-          fi
-          if [ -n "$INPUT" ]; then
-            python3 -m pip install --quiet pillow
-            python3 tools/import_robotfight_assets.py --input "$INPUT" --output "$PROJECT_DIR/Resources/original"
-          else
-            echo "Original asset archive not present in repository; scene bundle only will be packaged."
-            echo "Expected: robotfight/original_assets/RobotFight_full_named_assets.zip (or toy_attack.apk)."
-          fi
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/original-pack"
+          gh run download 42789600523 --repo "$GITHUB_REPOSITORY" --name "RobotFight-ARM64-debug" --dir "$RUNNER_TEMP/original-pack"
+          ORIGINAL_APK="$RUNNER_TEMP/original-pack/app-debug.apk"
+          test -s "$ORIGINAL_APK"
+          python3 - "$ORIGINAL_APK" <<'PY'
+          import sys, zipfile
+          apk = sys.argv[1]
+          with zipfile.ZipFile(apk) as z:
+              names = set(z.namelist())
+              required = "assets/robotfight_original/gamedata.dca"
+              if required not in names:
+                  raise SystemExit("Recovered APK does not contain the original DCA asset archive")
+              manifest = "assets/robotfight_original/art/_archive_manifest.json"
+              if manifest not in names:
+                  raise SystemExit("Recovered APK is missing the original asset manifest")
+              import json
+              data = json.loads(z.read(manifest))
+              if data.get("count") != 3232:
+                  raise SystemExit(f"Unexpected original asset count: {data.get('count')}")
+              print("Verified recovered original archive:", data["count"], "entries")
+          PY
+          echo "ORIGINAL_APK=$ORIGINAL_APK" >> "$GITHUB_ENV"
+
+      - name: Import complete original Toy Attack resources
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet pillow
+          python3 tools/import_robotfight_assets.py --input "$ORIGINAL_APK" --output "$PROJECT_DIR/Resources/original"
+          python3 - "$PROJECT_DIR/Resources/original" <<'PY'
+          from pathlib import Path
+          import json, sys
+          root = Path(sys.argv[1])
+          manifest = json.loads((root / "original_asset_manifest.json").read_text())
+          files = manifest["imported_files"]
+          if files < 3000:
+              raise SystemExit(f"Original resource import incomplete: only {files} files")
+          for required in ("RFBattleLayer.ccb", "RFMainLayer.ccb", "RFEditorLayer.ccb", "RFPartsData.plist"):
+              if not (root / required).is_file():
+                  raise SystemExit(f"Required original resource missing: {required}")
+          print("Verified original resource import:", files, "files")
+          print("Image conversion counts:", manifest["counts"])
+          PY
 
       - name: Update Android Gradle wrapper
         run: |
