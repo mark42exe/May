@@ -189,6 +189,28 @@ bool HelloWorld::init() {
     auto botBuild = makeDataBuild("TRAINING BOT", {"1_0", "1_0", "3_5", "0_0", "1_0"}, "0_1");
     auto battle = std::make_shared<Battle>(playerBuild, botBuild, 0x51A7u);
 
+    // Original battle HUD components recovered from RFBattleLayer.ccb.
+    if (auto hudLeft = Sprite::create("original/battle_player_info.png")) {
+        hudLeft->setPosition(w * 0.25f, h * 0.91f);
+        hudLeft->setScale(0.58f);
+        addChild(hudLeft, 8);
+    }
+    if (auto hudRight = Sprite::create("original/battle_player_info.png")) {
+        hudRight->setPosition(w * 0.75f, h * 0.91f);
+        hudRight->setFlippedX(true);
+        hudRight->setScale(0.58f);
+        addChild(hudRight, 8);
+    }
+    if (auto timerFrame = Sprite::create("original/battle_timer.png")) {
+        timerFrame->setPosition(w * 0.5f, h * 0.91f);
+        timerFrame->setScale(0.55f);
+        addChild(timerFrame, 9);
+    }
+    if (auto boostBar = Sprite::create("original/battle_boost_bar.png")) {
+        boostBar->setPosition(w * 0.5f, h * 0.72f);
+        boostBar->setScale(0.62f);
+        addChild(boostBar, 8);
+    }
     auto playerName = Label::createWithSystemFont("PLAYER", "Arial", 19);
     playerName->setPosition(w * 0.25f, h * 0.84f);
     playerName->setTextColor(Color4B(95, 210, 255, 255));
@@ -200,18 +222,21 @@ bool HelloWorld::init() {
     addChild(botName);
 
     // Per-part condition indicators mirror the original PLAYER / OPPONENT HUD.
-    const char* partGlyphs[] = {"B", "C", "H", "F", "R"};
+    const char* partIconFiles[] = {
+        "battle_robot_hp_base.png", "battle_robot_hp_core.png",
+        "battle_robot_hp_head.png", "battle_robot_hp_armf.png",
+        "battle_robot_hp_armb.png"
+    };
     auto makePartIndicators = [&](float centerX, float y) {
-        std::array<DrawNode*, 5> indicators{};
+        std::array<Sprite*, 5> indicators{};
         for (int i = 0; i < 5; ++i) {
-            auto cell = DrawNode::create();
-            cell->setPosition(centerX + (i - 2) * 27.0f, y);
-            addChild(cell, 15);
-            auto glyph = Label::createWithSystemFont(partGlyphs[i], "Arial", 10);
-            glyph->setTextColor(Color4B(12, 20, 28, 255));
-            glyph->setPosition(Vec2::ZERO);
-            cell->addChild(glyph, 1);
-            indicators[i] = cell;
+            auto icon = Sprite::create(std::string("original/") + partIconFiles[i]);
+            if (icon) {
+                icon->setPosition(centerX + (i - 2) * 27.0f, y);
+                icon->setScale(0.62f);
+                addChild(icon, 15);
+            }
+            indicators[i] = icon;
         }
         return indicators;
     };
@@ -508,22 +533,19 @@ bool HelloWorld::init() {
             battle->botTotalHp(), battle->botState().energy));
         coins->setString(StringUtils::format("COINS  %d", LocalProfile::coins()));
 
-        const auto updateParts = [](const std::array<DrawNode*, 5>& cells,
+        const auto updateParts = [](const std::array<Sprite*, 5>& cells,
                                     const robotfight::RobotState& state,
                                     const RobotBuild& build) {
             for (std::size_t i = 0; i < cells.size(); ++i) {
+                if (!cells[i]) continue;
                 const float ratio = static_cast<float>(std::max(0, state.hp[i])) /
                     static_cast<float>(std::max(1, build.parts[i].health));
-                const Color4F tint = ratio <= 0.0f ? Color4F(0.20f, 0.23f, 0.27f, 0.95f) :
-                    ratio < 0.25f ? Color4F(0.92f, 0.20f, 0.16f, 1.0f) :
-                    ratio < 0.60f ? Color4F(0.98f, 0.65f, 0.16f, 1.0f) :
-                                    Color4F(0.22f, 0.78f, 0.58f, 1.0f);
-                const Vec2 hex[] = {
-                    Vec2(-10, 0), Vec2(-5, 9), Vec2(5, 9),
-                    Vec2(10, 0), Vec2(5, -9), Vec2(-5, -9)
-                };
-                cells[i]->clear();
-                cells[i]->drawSolidPoly(hex, 6, tint);
+                const Color3B tint = ratio <= 0.0f ? Color3B(75, 82, 92) :
+                    ratio < 0.25f ? Color3B(235, 70, 55) :
+                    ratio < 0.60f ? Color3B(255, 178, 55) :
+                                    Color3B(95, 225, 190);
+                cells[i]->setColor(tint);
+                cells[i]->setOpacity(ratio <= 0.0f ? 100 : 255);
             }
         };
         updateParts(playerPartIndicators, battle->playerState(), playerBuild);
@@ -605,6 +627,30 @@ bool HelloWorld::init() {
         item->setContentSize(Size(w * 0.17f, 48));
         return item;
     };
+
+    // Original controller artwork frames the reconstructed offline controls.
+    if (auto leftController = Sprite::create("original/battle_controller.png")) {
+        leftController->setPosition(w * 0.12f, h * 0.30f);
+        leftController->setScale(0.48f);
+        addChild(leftController, 4);
+    }
+    if (auto rightController = Sprite::create("original/battle_controller.png")) {
+        rightController->setPosition(w * 0.88f, h * 0.30f);
+        rightController->setFlippedX(true);
+        rightController->setScale(0.48f);
+        addChild(rightController, 4);
+    }
+    if (auto direction = Sprite::create("original/battle_direction.png")) {
+        direction->setPosition(w * 0.12f, h * 0.30f);
+        direction->setScale(0.38f);
+        addChild(direction, 5);
+    }
+    if (auto direction = Sprite::create("original/battle_direction.png")) {
+        direction->setPosition(w * 0.88f, h * 0.30f);
+        direction->setFlippedX(true);
+        direction->setScale(0.38f);
+        addChild(direction, 5);
+    }
 
     auto menu = Menu::create(
         makeButton("STRIKE", Command::Strike, w * 0.20f),
