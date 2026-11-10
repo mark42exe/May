@@ -23,6 +23,47 @@ NODE_TYPES = {
 }
 
 
+
+def find_offset_tables(data: bytes) -> list[dict]:
+    """Find candidate descending offset arrays without assigning field semantics.
+
+    RCCB samples contain aligned u32 arrays whose entries point into scene
+    records. A candidate is reported only when the complete array is in bounds
+    and offsets are strictly descending. This is not a complete scene decoder.
+    """
+    candidates = []
+    for pos in range(0x50, len(data) - 16, 4):
+        count = struct.unpack_from("<I", data, pos)[0]
+        if not 3 <= count <= 256:
+            continue
+        end = pos + 4 + count * 4
+        if end > len(data):
+            continue
+        offsets = list(struct.unpack_from(f"<{count}I", data, pos + 4))
+        if offsets[-1] not in (4, 20, 28):
+            continue
+        if offsets[0] <= end or any(value >= len(data) for value in offsets[:-1]):
+            continue
+        if not all(offsets[i] > offsets[i + 1] for i in range(count - 1)):
+            continue
+        targets = []
+        for offset in offsets[:-1]:
+            sample = data[offset:offset + 96]
+            strings = [
+                match.group().decode("ascii", "replace")
+                for match in PRINTABLE.finditer(sample)
+            ]
+            targets.append({"offset": offset, "strings_near_target": strings[:4]})
+        candidates.append({
+            "table_offset": pos,
+            "entry_count": count,
+            "sentinel": offsets[-1],
+            "offsets": offsets,
+            "targets": targets,
+        })
+    return candidates
+
+
 def inspect(path: Path) -> dict:
     data = path.read_bytes()
     strings = []
@@ -49,6 +90,7 @@ def inspect(path: Path) -> dict:
         "resource_references": resources,
         "identifier_candidates": names,
         "strings": strings,
+        "candidate_offset_tables": find_offset_tables(data),
     }
 
 
