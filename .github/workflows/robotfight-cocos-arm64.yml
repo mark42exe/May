@@ -33,71 +33,34 @@ jobs:
         with:
           packages: platform-tools
 
-      - name: Install Android build tools
+      - name: Install legacy NDK required by original Cocos 3.15.1
         run: |
-          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;23.1.7779620" "cmake;3.22.1"
+          sdkmanager "platform-tools" "ndk;16.1.4479499"
 
-      - name: Download Cocos2d-x v4 engine and template
+      - name: Download original Cocos2d-x 3.15.1 engine and template
         run: |
-          git clone --depth 1 --branch v4 https://github.com/cocos2d/cocos2d-x.git "$RUNNER_TEMP/cocos2d-x"
+          git clone --depth 1 --branch cocos2d-x-3.15.1 https://github.com/cocos2d/cocos2d-x.git "$RUNNER_TEMP/cocos2d-x"
           mkdir -p "$RUNNER_TEMP/rf-cocos"
           cp -a "$RUNNER_TEMP/cocos2d-x/templates/cpp-template-default/." "$RUNNER_TEMP/rf-cocos/"
           cp -a "$RUNNER_TEMP/cocos2d-x" "$RUNNER_TEMP/rf-cocos/cocos2d"
-          cd "$RUNNER_TEMP/rf-cocos/cocos2d"
-          # Cocos v4 declares several submodules with the legacy git:// transport.
-          # GitHub Actions runners may block that port, so rewrite it to HTTPS.
-          git config --global url."https://github.com/".insteadOf git://github.com/
-          git submodule update --init --recursive
-          # The dependency helper prompts whether to keep its downloaded ZIP;
-          # CI is non-interactive, so answer 'no' explicitly.
-          printf 'no\\n' | python3 download-deps.py
           echo "PROJECT_DIR=$RUNNER_TEMP/rf-cocos" >> "$GITHUB_ENV"
 
-      - name: Configure native ARM64 project
+      - name: Configure original Cocos 3.15.1 for ARM64
         run: |
-          sed -i 's/PROP_COMPILE_SDK_VERSION=28/PROP_COMPILE_SDK_VERSION=33/' "$PROJECT_DIR/proj.android/gradle.properties"
-          sed -i 's/PROP_MIN_SDK_VERSION=16/PROP_MIN_SDK_VERSION=23/' "$PROJECT_DIR/proj.android/gradle.properties"
-          sed -i 's/PROP_TARGET_SDK_VERSION=28/PROP_TARGET_SDK_VERSION=33/' "$PROJECT_DIR/proj.android/gradle.properties"
-          sed -i 's/PROP_APP_ABI=armeabi-v7a/PROP_APP_ABI=arm64-v8a/' "$PROJECT_DIR/proj.android/gradle.properties"
-          sed -i "s/com.android.tools.build:gradle:3.4.0/com.android.tools.build:gradle:7.4.2/" "$PROJECT_DIR/proj.android/build.gradle"
-          sed -i 's/jcenter()/mavenCentral()/g' "$PROJECT_DIR/proj.android/build.gradle"
-          sed -i 's/HelloCpp/RobotFightNative/g' "$PROJECT_DIR/proj.android/settings.gradle"
-          sed -i 's/HelloCpp/RobotFightNative/g' "$PROJECT_DIR/proj.android/app/build.gradle"
-          sed -i 's/applicationId "org.cocos2dx.hellocpp"/applicationId "com.robotfight.nativeport"/' "$PROJECT_DIR/proj.android/app/build.gradle"
-          sed -i 's/APP_NAME HelloCpp/APP_NAME RobotFightNative/' "$PROJECT_DIR/CMakeLists.txt"
-          # The NDK defines __ANDROID__; Cocos v4 only checks ANDROID here.
-          # Recognise the standard NDK macro so CC_TARGET_PLATFORM resolves to Android.
-          sed -i 's/^#if defined(ANDROID)$/#if defined(ANDROID) || defined(__ANDROID__)/' "$PROJECT_DIR/cocos2d/cocos/platform/CCPlatformConfig.h"
-          sed -i 's/"HelloCpp"/"Robot Fight Native"/g' "$PROJECT_DIR/Classes/AppDelegate.cpp"
-          sed -i 's/android:screenOrientation="[^"]*"/android:screenOrientation="landscape"/' "$PROJECT_DIR/proj.android/app/AndroidManifest.xml"
-          sed -i 's/android:label="[^"]*"/android:label="Robot Fight Native"/' "$PROJECT_DIR/proj.android/app/AndroidManifest.xml"
-          # Android 12+ requires an explicit exported value on launcher activities.
+          set -euo pipefail
+          sed -i 's/^APP_ABI := .*/APP_ABI := arm64-v8a/' "$PROJECT_DIR/proj.android-studio/app/jni/Application.mk"
           python3 - <<'PY'
           from pathlib import Path
           import os
-          import xml.etree.ElementTree as ET
-          manifest = Path(os.environ["PROJECT_DIR"]) / "proj.android/app/AndroidManifest.xml"
-          tree = ET.parse(manifest)
-          root = tree.getroot()
-          ns = "{http://schemas.android.com/apk/res/android}"
-          found = False
-          for activity in root.findall(".//activity"):
-              is_launcher = False
-              for intent in activity.findall("intent-filter"):
-                  actions = {node.get(ns + "name") for node in intent.findall("action")}
-                  categories = {node.get(ns + "name") for node in intent.findall("category")}
-                  if "android.intent.action.MAIN" in actions and "android.intent.category.LAUNCHER" in categories:
-                      is_launcher = True
-                      break
-              if is_launcher:
-                  activity.set(ns + "exported", "true")
-                  found = True
-          if not found:
-              raise SystemExit("No MAIN/LAUNCHER activity found in generated manifest")
-          ET.register_namespace("android", "http://schemas.android.com/apk/res/android")
-          tree.write(manifest, encoding="utf-8", xml_declaration=True)
+          root = Path(os.environ["PROJECT_DIR"])
+          mk = root / "proj.android-studio/app/jni/Android.mk"
+          text = mk.read_text()
+          old = "                   ../../../Classes/HelloWorldScene.cpp"
+          new = old + " \\\\n                   ../../../Classes/RobotFightCore.cpp"
+          if old not in text:
+              raise SystemExit("Could not find original game source registration in Android.mk")
+          mk.write_text(text.replace(old, new))
           PY
-          sed -i 's/PROP_BUILD_TYPE=.*/PROP_BUILD_TYPE=cmake/' "$PROJECT_DIR/proj.android/gradle.properties" || true
           mkdir -p "$PROJECT_DIR/Resources"
           mkdir -p "$PROJECT_DIR/Classes"
           # Copy the complete checked-in game source directory, then verify every input
@@ -219,17 +182,18 @@ jobs:
           path: ${{ runner.temp }}/robot_part_geometry_audit.json
           if-no-files-found: error
 
-      - name: Update Android Gradle wrapper
-        run: |
-          sed -i 's/gradle-5.1.1-all/gradle-7.6.3-bin/' "$PROJECT_DIR/proj.android/gradle/wrapper/gradle-wrapper.properties"
-          sed -i 's/com.android.tools.build:gradle:7.4.2/com.android.tools.build:gradle:7.4.2/' "$PROJECT_DIR/proj.android/build.gradle"
-
-      - name: Compile ARM64 native library only (no APK)
-        working-directory: ${{ env.PROJECT_DIR }}/proj.android
+      - name: Compile original Cocos 3.15.1 native library for ARM64 only (no APK)
         run: |
           set -euo pipefail
-          chmod +x gradlew
-          ./gradlew --no-daemon :RobotFightNative:externalNativeBuildDebug
-          find app/build/intermediates -type f -name '*.so' -print
-          test -n "$(find app/build/intermediates -type f -path '*/arm64-v8a/*.so' -print -quit)"
-          echo "ARM64 native compilation passed. No APK was assembled or uploaded."
+          NDK="$ANDROID_HOME/ndk/16.1.4479499"
+          test -x "$NDK/ndk-build"
+          "$NDK/ndk-build" -C "$PROJECT_DIR/proj.android-studio/app" \
+            NDK_PROJECT_PATH=. \
+            APP_BUILD_SCRIPT=jni/Android.mk \
+            NDK_APPLICATION_MK=jni/Application.mk \
+            NDK_MODULE_PATH="$PROJECT_DIR/cocos2d:$PROJECT_DIR/cocos2d/cocos:$PROJECT_DIR/cocos2d/external" \
+            APP_ABI=arm64-v8a
+          find "$PROJECT_DIR/proj.android-studio/app/obj/local/arm64-v8a" -type f -name '*.so' -print
+          test -s "$PROJECT_DIR/proj.android-studio/app/obj/local/arm64-v8a/libMyGame.so"
+          file "$PROJECT_DIR/proj.android-studio/app/obj/local/arm64-v8a/libMyGame.so"
+          echo "Cocos 3.15.1 ARM64 native compilation passed. No APK was assembled or uploaded."
