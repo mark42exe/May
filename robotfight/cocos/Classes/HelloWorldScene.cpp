@@ -299,22 +299,23 @@ bool HelloWorld::init() {
         auto garageRobot = std::make_shared<Node*>(makeRobotView(w * 0.84f, h * 0.48f, false, playerPartIds, playerBatteryId));
         panel->addChild(*garageRobot, 5);
 
-        const std::vector<std::string> ids = {
-            "0_0","0_1","0_2","0_3","0_4","0_5","0_6",
-            "1_0","1_1","1_2","1_3","1_4","1_5","1_6",
-            "2_0","2_1","2_2","2_3","2_4","2_5","2_6",
-            "3_0","3_1","3_2","3_3","3_4","3_5","3_6","3_7","3_12"
+        const auto garageCatalog =
+            FileUtils::getInstance()->getValueMapFromFile("original/RFPartsData.plist");
+        struct Slot {
+            const char* title;
+            const char* key;
+            const char* category;
+            const char* prefix;
+            const char* saveKey;
         };
-        struct Slot { const char* title; const char* key; const char* prefix; const char* saveKey; };
         const Slot slots[] = {
-            {"BASE", "base", "base_", "rf.part.base"},
-            {"CORE", "core", "core_", "rf.part.core"},
-            {"HEAD", "head", "head_", "rf.part.head"},
-            {"BACK ARM", "back", "arm_b_", "rf.part.back"},
-            {"FRONT ARM", "front", "arm_f_", "rf.part.front"},
-            {"BATTERY", "battery", "battery_1_", "rf.part.battery"}
+            {"BASE", "base", "Base", "base_", "rf.part.base"},
+            {"CORE", "core", "Core", "core_", "rf.part.core"},
+            {"HEAD", "head", "Head", "head_", "rf.part.head"},
+            {"BACK ARM", "back", "BackArm", "arm_b_", "rf.part.back"},
+            {"FRONT ARM", "front", "FrontArm", "arm_f_", "rf.part.front"},
+            {"BATTERY", "battery", "Battery", "battery_1_", "rf.part.battery"}
         };
-        const std::vector<std::string> batteryIds = {"0_0", "0_1", "0_2"};
         for (int i = 0; i < 6; ++i) {
             const float y = h * 0.75f - i * h * 0.095f;
             auto name = Label::createWithSystemFont(slots[i].title, "Arial", 18);
@@ -335,7 +336,30 @@ bool HelloWorld::init() {
             current->setTextColor(Color4B(255, 205, 95, 255));
             panel->addChild(current);
 
-            const auto choices = std::string(slot.key) == "battery" ? batteryIds : ids;
+            std::vector<std::string> choices;
+            const auto categoryIt = garageCatalog.find(slot.category);
+            if (categoryIt != garageCatalog.end()) {
+                for (const auto& entry : categoryIt->second.asValueMap()) {
+                    const auto& partId = entry.first;
+                    if (partId == "dummy") continue;
+                    std::string imageName;
+                    if (std::string(slot.key) == "battery") {
+                        const auto separator = partId.find_last_of('_');
+                        const auto textureId = separator == std::string::npos
+                            ? partId : partId.substr(separator + 1);
+                        imageName = std::string("original/") + slot.prefix + textureId + ".png";
+                    } else {
+                        imageName = std::string("original/") + slot.prefix + partId + ".png";
+                    }
+                    if (FileUtils::getInstance()->isFileExist(imageName))
+                        choices.push_back(partId);
+                }
+            }
+            if (choices.empty()) {
+                choices = std::string(slot.key) == "battery"
+                    ? std::vector<std::string>{"0_0", "0_1", "0_2"}
+                    : std::vector<std::string>{"0_0", "1_0", "2_0", "3_5"};
+            }
             auto change = [=](int direction) {
                 auto value = UserDefault::getInstance()->getStringForKey(slot.saveKey, current->getString());
                 auto it = std::find(choices.begin(), choices.end(), value);
