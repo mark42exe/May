@@ -42,6 +42,9 @@ jobs:
           cp -a "$RUNNER_TEMP/cocos2d-x/templates/cpp-template-default/." "$RUNNER_TEMP/rf-cocos/"
           cp -a "$RUNNER_TEMP/cocos2d-x" "$RUNNER_TEMP/rf-cocos/cocos2d"
           cd "$RUNNER_TEMP/rf-cocos/cocos2d"
+          # Cocos v4 declares several submodules with the legacy git:// transport.
+          # GitHub Actions runners may block that port, so rewrite it to HTTPS.
+          git config --global url."https://github.com/".insteadOf git://github.com/
           git submodule update --init --recursive
           python3 download-deps.py
           echo "PROJECT_DIR=$RUNNER_TEMP/rf-cocos" >> "$GITHUB_ENV"
