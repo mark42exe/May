@@ -71,6 +71,19 @@ jobs:
           path: ${{ runner.temp }}/robotfight_ccb_headers.txt
           if-no-files-found: error
 
+      - name: Package original RCCB scene samples
+        run: |
+          mkdir -p "$RUNNER_TEMP/rccb-scenes"
+          find "$PROJECT_DIR/app/src/main/assets/robotfight_original/art" -type f -name "*.ccb" -exec cp --parents {} "$RUNNER_TEMP/rccb-scenes/" \;
+          (cd "$RUNNER_TEMP/rccb-scenes" && zip -qr "$RUNNER_TEMP/RobotFight-Original-RCCB-Scenes.zip" .)
+
+      - name: Upload original RCCB scene samples
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-Original-RCCB-Scenes
+          path: ${{ runner.temp }}/RobotFight-Original-RCCB-Scenes.zip
+          if-no-files-found: error
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
