@@ -148,12 +148,3 @@ jobs:
           name: RobotFight-Cocos-ARM64-Smoke-Test
           path: ${{ runner.temp }}/native-apk/RobotFight-Cocos-ARM64-smoke.apk
           if-no-files-found: error
-
-          mkdir -p "$RUNNER_TEMP/native-apk"
-          cp "$APK" "$RUNNER_TEMP/native-apk/RobotFight-Cocos-ARM64-smoke.apk"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: RobotFight-Cocos-ARM64-Smoke-Test
-          path: ${{ runner.temp }}/native-apk/RobotFight-Cocos-ARM64-smoke.apk
-          if-no-files-found: error
