@@ -345,13 +345,16 @@ jobs:
           s = p.read_text()
           s = s.replace('package="org.cocos2dx.hellocpp"', 'package="com.animocabrands.robotfight.restored"')
           p.write_text(s)
+          for strings in Path(sys.argv[1]).parent.joinpath("res").rglob("strings.xml"):
+              content = strings.read_text()
+              strings.write_text(content.replace("HelloCpp", "Toy Attack"))
           PY
           GRADLE_ZIP="$RUNNER_TEMP/gradle-3.3-bin.zip"
           curl -fL --retry 3 --retry-delay 2 https://services.gradle.org/distributions/gradle-3.3-bin.zip -o "$GRADLE_ZIP"
           unzip -q "$GRADLE_ZIP" -d "$RUNNER_TEMP"
           "$RUNNER_TEMP/gradle-3.3/bin/gradle" -p "$STUDIO" --no-daemon --stacktrace :app:assembleDebug
-          APK="$STUDIO/app/build/outputs/apk/app-debug.apk"
-          test -s "$APK"
+          APK="$(find "$STUDIO/app/build/outputs/apk" -type f -name "*.apk" -print -quit)"
+          test -n "$APK" && test -s "$APK"
           mkdir -p "$RUNNER_TEMP/final-apk"
           cp "$APK" "$RUNNER_TEMP/final-apk/ToyAttack_ARM64.apk"
           file "$STUDIO/app/src/main/jniLibs/arm64-v8a/libMyGame.so"
