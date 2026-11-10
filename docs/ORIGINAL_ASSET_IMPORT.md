@@ -76,3 +76,22 @@ The RCCB files begin with a proprietary RCCB header and are not standard Cocos C
 The DCA itself does not include audio, but the recovered source APK stores 53 original audio files beside it (OGG, WAV and M4A). The importer now extracts these audio files and the companion font into the native resource tree.
 
 The recovered data is not the original proprietary C++ game source. Collision polygons, part stats, stage rules, AI chip definitions, and UI assets can be reused as data, but the runtime systems must be reimplemented and validated.
+
+## Recovered scene-layout reference index
+
+The following node names and referenced resources were extracted from the original RCCB scene byte streams. They are useful reconstruction targets even though the proprietary RCCB reader is unavailable.
+
+- **RFMainLayer.ccb** — fight/scene preview, opponent and rank panels, achievement, event, news, settings, ranking, profile and editor navigation; opponent name and record labels; tier and notification indicators.
+- **RFEditorLayer.ccb** — equip/confirm action, robot part categories (battery, base, front arm, back arm, core), AI action/condition tabs, AI chip table, chip description popup, cost and tuning controls.
+- **RFBattleLayer.ccb** — countdown/timer, player and opponent code blocks, overheat and emergency alert, boost meter, direction/controller display, part-health nodes, battle result score/rank and win/lose labels.
+- **RobotSelectStageLayer.ccb** — chapter header, story-stage map, stage reward nodes, difficulty choices (normal/hard/extreme), stage description and start button.
+- **RobotStageDetailLayer.ccb / RobotRaceStageDetailLayer.ccb** — stage detail, opponent information, rewards, difficulty and start controls.
+- **RFProfileLayer.ccb** — pilot name/avatar, edit/rename, robot part summary, owned-part count, rank, current score and win/loss battle record.
+- **RFLootMenu.ccb / LootFreeNode.ccb / LootShopNode.ccb** — chest doors, open/free/video actions, timer, reward and item display.
+- **RFQuestMenu.ccb / RFQuestItemNode.ccb / RFQuestNotificationMenu.ccb** — quest list, quest item cards, progress and notification overlays.
+- **RFSettingMenu.ccb / RFLanguageMenu.ccb** — settings and language selection.
+- **RFCodeLayer.ccb / RFCodeBlock.ccb / RFBattleAIActionNode.ccb** — original programmable AI/code-block editor and battle AI action display.
+- **RFTutorOverlayEditor.ccb / RFTutorOverlayCode.ccb / RFTutorialDialogue.ccb** — tutorial overlays, coding/editor hints and dialogue.
+- **RFTierLayer.ccb / RFRankLayer.ccb / RFRankEntryCell.ccb** — tier/rank pages and rank entry cells.
+
+Other extracted files include SoundEvents.plist, SpeechInfo.plist, Languages.plist, Strings_default.plist and 12 localized string tables. These provide the original UI text keys, sound-event mapping, speech metadata and translation references.
