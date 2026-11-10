@@ -335,7 +335,7 @@ bool HelloWorld::init() {
             const float y = h * 0.75f - i * h * 0.095f;
             if (auto rowPanel = Sprite::create("original/editor_stats_panel.png")) {
                 rowPanel->setPosition(w * 0.54f, y);
-                rowPanel->setScale(0.27f);
+                rowPanel->setScale(0.18f);
                 rowPanel->setOpacity(205);
                 panel->addChild(rowPanel, 1);
             }
