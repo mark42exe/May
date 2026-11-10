@@ -16,12 +16,35 @@ using robotfight::LocalProfile;
 using robotfight::PartStats;
 using robotfight::RobotBuild;
 
-RobotBuild makeBuild(const std::string& id, const std::string& name,
-                     int hp, int attack, int defense) {
+RobotBuild makeDataBuild(const std::string& name,
+                          const std::array<std::string, 5>& ids) {
     RobotBuild build;
-    build.id = id;
+    build.id = name;
     build.displayName = name;
-    for (auto& part : build.parts) part = PartStats{hp, attack, defense, 100};
+    const auto catalog = FileUtils::getInstance()->getValueMapFromFile("original/RFPartsData.plist");
+    const char* categories[] = {"Base", "Core", "Head", "FrontArm", "BackArm"};
+    for (std::size_t i = 0; i < ids.size(); ++i) {
+        PartStats stats{80, 12, 8, 100};
+        auto category = catalog.find(categories[i]);
+        if (category != catalog.end()) {
+            const auto entries = category->second.asValueMap();
+            auto found = entries.find(ids[i]);
+            if (found != entries.end()) {
+                const auto item = found->second.asValueMap();
+                const float power = item.count("powerPoint") ? item.at("powerPoint").asFloat() : 20.0f;
+                const float attack = item.count("baseAtk") ? item.at("baseAtk").asFloat() : 10.0f;
+                float hpScale = 1.0f;
+                if (item.count("hpMultiplier")) {
+                    const auto hp = item.at("hpMultiplier").asValueMap();
+                    if (hp.count("default")) hpScale = hp.at("default").asFloat();
+                }
+                stats.health = std::max(20, static_cast<int>(power * 3.0f + hpScale * 2.0f));
+                stats.attack = std::max(1, static_cast<int>(attack + power * 0.15f));
+                stats.defense = std::max(1, static_cast<int>(hpScale * 2.0f));
+            }
+        }
+        build.parts[i] = stats;
+    }
     return build;
 }
 }
@@ -59,8 +82,14 @@ bool HelloWorld::init() {
     title->setPosition(origin + Vec2(w * 0.5f, h - 28));
     addChild(title);
 
-    auto playerBuild = makeBuild("player_local", "PLAYER", 100, 42, 28);
-    auto botBuild = makeBuild("bot_training", "TRAINING BOT", 92, 38, 24);
+    auto playerBuild = makeDataBuild("PLAYER", {
+        UserDefault::getInstance()->getStringForKey("rf.part.base", "2_0"),
+        UserDefault::getInstance()->getStringForKey("rf.part.core", "1_0"),
+        UserDefault::getInstance()->getStringForKey("rf.part.head", "3_5"),
+        UserDefault::getInstance()->getStringForKey("rf.part.front", "0_0"),
+        UserDefault::getInstance()->getStringForKey("rf.part.back", "0_3")
+    });
+    auto botBuild = makeDataBuild("TRAINING BOT", {"1_0", "1_0", "3_5", "0_0", "1_0"});
     auto battle = std::make_shared<Battle>(playerBuild, botBuild, 0x51A7u);
 
     auto playerName = Label::createWithSystemFont("PLAYER", "Arial", 19);
