@@ -31,6 +31,16 @@ jobs:
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
           echo "Using source project: $PROJECT_DIR"
 
+      - name: Integrate offline game UI and recovered original art
+        run: |
+          mkdir -p "$PROJECT_DIR/app/src/main/assets/robotfight_original/art"
+          cp robotfight/android/index.html "$PROJECT_DIR/app/src/main/assets/index.html"
+          cp robotfight/android/MainActivity.kt "$PROJECT_DIR/app/src/main/java/com/robotfight/offline/MainActivity.kt"
+          cp robotfight/android/AndroidManifest.xml "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
+          python3 tools/extract_robotfight_dca.py "$PROJECT_DIR/app/src/main/assets/robotfight_original/gamedata.dca" "$PROJECT_DIR/app/src/main/assets/robotfight_original/art"
+          test "$(find "$PROJECT_DIR/app/src/main/assets/robotfight_original/art" -type f -name '*.webp' | wc -l)" -gt 1000
+          echo "Integrated recovered WebP art resources"
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
