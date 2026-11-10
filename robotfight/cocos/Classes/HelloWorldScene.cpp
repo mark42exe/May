@@ -150,7 +150,7 @@ bool HelloWorld::init() {
     auto openGarage = [=]() {
         AudioEngine::play2d("original/sfx_btn_press.ogg");
         auto panel = Node::create();
-        addChild(panel, 100);
+        addChild(panel, 300);
         auto shade = DrawNode::create();
         shade->drawSolidRect(Vec2(0, 0), Vec2(w, h), Color4F(0.015f, 0.025f, 0.05f, 0.96f));
         panel->addChild(shade);
@@ -225,7 +225,7 @@ bool HelloWorld::init() {
 
     auto openStages = [=]() {
         auto panel = Node::create();
-        addChild(panel, 100);
+        addChild(panel, 300);
         auto shade = DrawNode::create();
         shade->drawSolidRect(Vec2(0, 0), Vec2(w, h), Color4F(0.015f, 0.025f, 0.05f, 0.96f));
         panel->addChild(shade);
