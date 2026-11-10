@@ -59,6 +59,19 @@ jobs:
         run: |
           APK=app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
+          # Fix the ELF64 program-header parser in the supplied source archive:
+          # p_paddr is at +24; p_filesz is at +32.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("tools/verify_arm64_apk.py")
+          s = p.read_text()
+          wrong = 'p_offset, p_vaddr, p_filesz = struct.unpack_from(endian + "QQQ", data, off + 8)'
+          right = 'p_offset, p_vaddr = struct.unpack_from(endian + "QQ", data, off + 8)\n        p_filesz = struct.unpack_from(endian + "Q", data, off + 32)[0]'
+          if wrong in s:
+              p.write_text(s.replace(wrong, right))
+          elif right not in s:
+              raise SystemExit("Could not identify expected ELF parser line")
+          PY
           python3 tools/verify_arm64_apk.py "$APK"
 
       - name: Upload APK artifact
