@@ -62,21 +62,43 @@ bool HelloWorld::init() {
     botName->setTextColor(Color4B(255, 145, 105, 255));
     addChild(botName);
 
-    auto playerRobot = DrawNode::create();
-    playerRobot->drawSolidRect(Vec2(-42, -28), Vec2(42, 28), Color4F(0.10f, 0.55f, 0.78f, 1));
-    playerRobot->drawSolidRect(Vec2(-25, 28), Vec2(25, 65), Color4F(0.15f, 0.72f, 0.92f, 1));
-    playerRobot->drawSolidCircle(Vec2(-12, 47), 5, 0, 16, Color4F::WHITE);
-    playerRobot->drawSolidCircle(Vec2(12, 47), 5, 0, 16, Color4F::WHITE);
-    playerRobot->setPosition(w * 0.25f, h * 0.55f);
-    addChild(playerRobot);
-
-    auto botRobot = DrawNode::create();
-    botRobot->drawSolidRect(Vec2(-42, -28), Vec2(42, 28), Color4F(0.72f, 0.25f, 0.16f, 1));
-    botRobot->drawSolidRect(Vec2(-25, 28), Vec2(25, 65), Color4F(0.90f, 0.42f, 0.22f, 1));
-    botRobot->drawSolidCircle(Vec2(-12, 47), 5, 0, 16, Color4F::WHITE);
-    botRobot->drawSolidCircle(Vec2(12, 47), 5, 0, 16, Color4F::WHITE);
-    botRobot->setPosition(w * 0.75f, h * 0.55f);
-    addChild(botRobot);
+    // Prefer original Toy Attack component art when the optional asset pack is present.
+    // The fallback remains a simple diagnostic silhouette until the full scene reader is ready.
+    auto makeRobotView = [&](float x, float y, bool enemy) -> Node* {
+        auto robot = Node::create();
+        const struct PartPlacement { const char* file; Vec2 position; float scale; } parts[] = {
+            {"original/base_2_0.png", Vec2(0, -42), 0.72f},
+            {"original/core_1_0.png", Vec2(0, 4), 0.72f},
+            {"original/head_0_0.png", Vec2(0, 52), 0.72f},
+            {"original/arm_b_0_3.png", Vec2(-61, 4), 0.62f},
+            {"original/arm_f_0_0.png", Vec2(61, 4), 0.62f},
+        };
+        int loaded = 0;
+        for (const auto& part : parts) {
+            if (auto sprite = Sprite::create(part.file)) {
+                sprite->setPosition(part.position);
+                sprite->setScale(part.scale);
+                if (enemy) sprite->setFlippedX(true);
+                robot->addChild(sprite);
+                ++loaded;
+            }
+        }
+        if (loaded < 5) {
+            robot->removeAllChildren();
+            auto fallback = DrawNode::create();
+            const auto body = enemy ? Color4F(0.72f, 0.25f, 0.16f, 1) : Color4F(0.10f, 0.55f, 0.78f, 1);
+            const auto head = enemy ? Color4F(0.90f, 0.42f, 0.22f, 1) : Color4F(0.15f, 0.72f, 0.92f, 1);
+            fallback->drawSolidRect(Vec2(-42, -28), Vec2(42, 28), body);
+            fallback->drawSolidRect(Vec2(-25, 28), Vec2(25, 65), head);
+            fallback->drawSolidCircle(Vec2(-12, 47), 5, 0, 16, Color4F::WHITE);
+            fallback->drawSolidCircle(Vec2(12, 47), 5, 0, 16, Color4F::WHITE);
+            robot->addChild(fallback);
+        }
+        robot->setPosition(x, y);
+        return robot;
+    };
+    addChild(makeRobotView(w * 0.25f, h * 0.55f, false));
+    addChild(makeRobotView(w * 0.75f, h * 0.55f, true));
 
     auto coins = Label::createWithSystemFont("", "Arial", 17);
     coins->setAnchorPoint(Vec2(1, 0.5f));
