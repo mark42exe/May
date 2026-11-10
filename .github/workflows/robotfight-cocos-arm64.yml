@@ -63,6 +63,9 @@ jobs:
           sed -i 's/HelloCpp/RobotFightNative/g' "$PROJECT_DIR/proj.android/app/build.gradle"
           sed -i 's/applicationId "org.cocos2dx.hellocpp"/applicationId "com.robotfight.nativeport"/' "$PROJECT_DIR/proj.android/app/build.gradle"
           sed -i 's/APP_NAME HelloCpp/APP_NAME RobotFightNative/' "$PROJECT_DIR/CMakeLists.txt"
+          # The NDK defines __ANDROID__; Cocos v4 only checks ANDROID here.
+          # Recognise the standard NDK macro so CC_TARGET_PLATFORM resolves to Android.
+          sed -i 's/^#if defined(ANDROID)$/#if defined(ANDROID) || defined(__ANDROID__)/' "$PROJECT_DIR/cocos2d/cocos/platform/CCPlatformConfig.h"
           sed -i 's/"HelloCpp"/"Robot Fight Native"/g' "$PROJECT_DIR/Classes/AppDelegate.cpp"
           sed -i 's/android:screenOrientation="[^"]*"/android:screenOrientation="landscape"/' "$PROJECT_DIR/proj.android/app/AndroidManifest.xml"
           sed -i 's/android:label="[^"]*"/android:label="Robot Fight Native"/' "$PROJECT_DIR/proj.android/app/AndroidManifest.xml"
