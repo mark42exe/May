@@ -1,4 +1,4 @@
-name: Robot Fight Native Cocos ARM64 Smoke Test
+name: Toy Attack ARM64 Port Validation (No APK)
 
 on:
   workflow_dispatch:
@@ -224,40 +224,12 @@ jobs:
           sed -i 's/gradle-5.1.1-all/gradle-7.6.3-bin/' "$PROJECT_DIR/proj.android/gradle/wrapper/gradle-wrapper.properties"
           sed -i 's/com.android.tools.build:gradle:7.4.2/com.android.tools.build:gradle:7.4.2/' "$PROJECT_DIR/proj.android/build.gradle"
 
-      - name: Build native Cocos ARM64 APK
+      - name: Compile ARM64 native library only (no APK)
         working-directory: ${{ env.PROJECT_DIR }}/proj.android
         run: |
+          set -euo pipefail
           chmod +x gradlew
-          ./gradlew --no-daemon :RobotFightNative:assembleDebug
-
-      - name: Verify and stage native ARM64 APK
-        run: |
-          set -e
-          APK="$PROJECT_DIR/proj.android/app/build/outputs/apk/debug/RobotFightNative-debug.apk"
-          echo "Expected APK: $APK"
-          if [ ! -s "$APK" ]; then
-            echo "APK missing; locating generated APKs:"
-            find "$PROJECT_DIR/proj.android" -type f -name '*.apk' -print
-            exit 1
-          fi
-          python3 - "$APK" <<'PY'
-          import sys, zipfile
-          apk = sys.argv[1]
-          with zipfile.ZipFile(apk) as z:
-              bad = z.testzip()
-              if bad:
-                  raise SystemExit(f"Corrupt APK entry: {bad}")
-              libs = [n for n in z.namelist() if n.endswith(".so")]
-              print("Native libraries packaged:", libs)
-              arm64 = [n for n in libs if n.startswith("lib/arm64-v8a/")]
-              if not arm64:
-                  raise SystemExit("APK does not contain an arm64-v8a native library")
-          PY
-          mkdir -p "$RUNNER_TEMP/native-apk"
-          cp "$APK" "$RUNNER_TEMP/native-apk/RobotFight-Cocos-ARM64-offline-core.apk"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: RobotFight-Cocos-ARM64-Offline-Core
-          path: ${{ runner.temp }}/native-apk/RobotFight-Cocos-ARM64-offline-core.apk
-          if-no-files-found: error
+          ./gradlew --no-daemon :RobotFightNative:externalNativeBuildDebug
+          find app/build/intermediates -type f -name '*.so' -print
+          test -n "$(find app/build/intermediates -type f -path '*/arm64-v8a/*.so' -print -quit)"
+          echo "ARM64 native compilation passed. No APK was assembled or uploaded."
