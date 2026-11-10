@@ -588,26 +588,71 @@ bool HelloWorld::init() {
     note->setPosition(w * 0.5f, 16);
     addChild(note);
 
-    // Native recreation of the original home hub, using recovered Toy Attack artwork.
+    // Original-art home hub reconstructed from the recovered RFMainLayer resources.
+    // The proprietary RCCB node graph is not decoded yet, so this is a native
+    // layout using the exact original backgrounds, robot stand, tier and menu art.
     auto home = Node::create();
     addChild(home, 200);
+    auto addHomeSprite = [=](const std::string& file, const Vec2& position,
+                              float scale, int z = 0) -> Sprite* {
+        auto sprite = Sprite::create("original/" + file + ".png");
+        if (!sprite) return nullptr;
+        sprite->setPosition(position);
+        sprite->setScale(scale);
+        home->addChild(sprite, z);
+        return sprite;
+    };
     if (auto homeArt = Sprite::create("original/1_common_bg_1.png")) {
         const auto size = homeArt->getContentSize();
         homeArt->setScale(std::max(w / size.width, h / size.height));
         homeArt->setPosition(w * 0.5f, h * 0.5f);
-        home->addChild(homeArt);
+        home->addChild(homeArt, -5);
     }
-    auto homeShade = DrawNode::create();
-    homeShade->drawSolidRect(Vec2(0, 0), Vec2(w, h), Color4F(0.01f, 0.02f, 0.04f, 0.62f));
-    home->addChild(homeShade);
-    auto homeTitle = Label::createWithSystemFont("TOY ATTACK", "Arial", 42);
-    homeTitle->setTextColor(Color4B(235, 245, 255, 255));
-    homeTitle->setPosition(w * 0.5f, h * 0.78f);
-    home->addChild(homeTitle);
-    auto homeSub = Label::createWithSystemFont("OFFLINE REBUILD  /  ARM64", "Arial", 14);
-    homeSub->setTextColor(Color4B(130, 205, 235, 255));
-    homeSub->setPosition(w * 0.5f, h * 0.71f);
-    home->addChild(homeSub);
+    if (auto glow = addHomeSprite("mainmenu_robot_ef_1", Vec2(w * 0.29f, h * 0.43f), 1.05f, -2))
+        glow->setOpacity(150);
+    addHomeSprite("mainmeun_robotstand", Vec2(w * 0.29f, h * 0.20f), 0.72f, -1);
+    auto homeRobot = makeRobotView(w * 0.29f, h * 0.43f, false,
+                                   readPlayerPartIds(), readPlayerBatteryId());
+    home->addChild(homeRobot, 1);
+    addHomeSprite("mainmenu_player_info", Vec2(w * 0.22f, h * 0.84f), 0.53f, 2);
+    addHomeSprite("mainmeun_tier", Vec2(w * 0.88f, h * 0.83f), 0.43f, 2);
+    addHomeSprite("mainmenu_edit_btn", Vec2(w * 0.30f, h * 0.27f), 0.78f, 3);
+
+    auto homeName = Label::createWithSystemFont("PLAYER", "Arial-BOLD", 18);
+    homeName->setAnchorPoint(Vec2(0, 0.5f));
+    homeName->setPosition(w * 0.095f, h * 0.865f);
+    homeName->setTextColor(Color4B(225, 245, 255, 255));
+    home->addChild(homeName, 4);
+    auto homeRecord = Label::createWithSystemFont(
+        StringUtils::format("WINS  %d     LOSSES  %d", LocalProfile::wins(), LocalProfile::losses()),
+        "Arial", 13);
+    homeRecord->setAnchorPoint(Vec2(0, 0.5f));
+    homeRecord->setPosition(w * 0.095f, h * 0.815f);
+    homeRecord->setTextColor(Color4B(135, 220, 245, 255));
+    home->addChild(homeRecord, 4);
+    auto homeTier = Label::createWithSystemFont("TIER  1", "Arial-BOLD", 17);
+    homeTier->setPosition(w * 0.88f, h * 0.68f);
+    homeTier->setTextColor(Color4B(255, 225, 135, 255));
+    home->addChild(homeTier, 4);
+
+    // The original main layer's fight console and menu buttons are reused as
+    // visual controls rather than replacing the game with generic text buttons.
+    addHomeSprite("fight_scene", Vec2(w * 0.73f, h * 0.43f), 0.57f, 0);
+    addHomeSprite("fight_stand", Vec2(w * 0.73f, h * 0.22f), 0.43f, 1);
+    auto fightCaption = Label::createWithSystemFont("FIGHT", "Arial-BOLD", 30);
+    fightCaption->setTextColor(Color4B(255, 225, 155, 255));
+    fightCaption->setPosition(w * 0.73f, h * 0.44f);
+    home->addChild(fightCaption, 5);
+    auto homeButtonArt = [=](float x, float y) {
+        auto art = Sprite::create("original/btn_menu_top.png");
+        if (!art) return;
+        art->setPosition(x, y);
+        art->setScale(0.60f);
+        home->addChild(art, 2);
+    };
+    homeButtonArt(w * 0.48f, h * 0.13f);
+    homeButtonArt(w * 0.68f, h * 0.13f);
+    homeButtonArt(w * 0.86f, h * 0.13f);
 
     auto infoPanel = [=](const std::string& headingText, const std::string& bodyText) {
         auto panel = Node::create();
