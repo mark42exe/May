@@ -301,7 +301,7 @@ jobs:
               repositories { maven { url 'https://maven.google.com' }; mavenCentral(); jcenter() }
               dependencies { classpath 'com.android.tools.build:gradle:2.3.0' }
           }
-          allprojects { repositories { google(); mavenCentral(); jcenter() } }
+          allprojects { repositories { maven { url 'https://maven.google.com' }; mavenCentral(); jcenter() } }
           GRADLE
           cat > "$STUDIO/settings.gradle" <<'GRADLE'
           include ':libcocos2dx'
