@@ -400,7 +400,7 @@ jobs:
           with ZipFile(sys.argv[1]) as z:
               name = "lib/arm64-v8a/libMyGame.so"
               data = z.read(name)
-              if data[:4] != b"\\x7fELF" or data[4] != 2 or data[5] != 1:
+              if data[:4] != bytes([127, 69, 76, 70]) or data[4] != 2 or data[5] != 1:
                   raise SystemExit("Expected ELF64 little-endian native library")
               machine = struct.unpack_from("<H", data, 18)[0]
               if machine != 183:
