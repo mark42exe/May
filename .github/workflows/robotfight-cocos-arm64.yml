@@ -99,6 +99,8 @@ jobs:
           mkdir -p "$PROJECT_DIR/Resources"
           cp robotfight/cocos/Classes/HelloWorldScene.cpp "$PROJECT_DIR/Classes/HelloWorldScene.cpp"
           cp robotfight/cocos/Classes/HelloWorldScene.h "$PROJECT_DIR/Classes/HelloWorldScene.h"
+          cp robotfight/cocos/Classes/RobotFightCore.cpp "$PROJECT_DIR/Classes/RobotFightCore.cpp"
+          cp robotfight/cocos/Classes/RobotFightCore.h "$PROJECT_DIR/Classes/RobotFightCore.h"
 
       - name: Fetch original scene bundle from verified workflow artifact
         env:
@@ -136,17 +138,32 @@ jobs:
 
       - name: Verify and stage native ARM64 APK
         run: |
+          set -e
           APK="$PROJECT_DIR/proj.android/app/build/outputs/apk/debug/app-debug.apk"
-          test -s "$APK"
-          unzip -tq "$APK"
-          echo 'Shared libraries actually packaged in APK:'
-          unzip -Z1 "$APK" | grep -E '\\.so$' || true
-          echo 'CMake compiled target: arm64-v8a (see Build native Cocos ARM64 APK step)'
+          echo "Expected APK: $APK"
+          if [ ! -s "$APK" ]; then
+            echo "APK missing; locating generated APKs:"
+            find "$PROJECT_DIR/proj.android" -type f -name '*.apk' -print
+            exit 1
+          fi
+          python3 - "$APK" <<'PY'
+          import sys, zipfile
+          apk = sys.argv[1]
+          with zipfile.ZipFile(apk) as z:
+              bad = z.testzip()
+              if bad:
+                  raise SystemExit(f"Corrupt APK entry: {bad}")
+              libs = [n for n in z.namelist() if n.endswith(".so")]
+              print("Native libraries packaged:", libs)
+              arm64 = [n for n in libs if n.startswith("lib/arm64-v8a/")]
+              if not arm64:
+                  raise SystemExit("APK does not contain an arm64-v8a native library")
+          PY
           mkdir -p "$RUNNER_TEMP/native-apk"
-          cp "$APK" "$RUNNER_TEMP/native-apk/RobotFight-Cocos-ARM64-smoke.apk"
+          cp "$APK" "$RUNNER_TEMP/native-apk/RobotFight-Cocos-ARM64-offline-core.apk"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: RobotFight-Cocos-ARM64-Smoke-Test
+          name: RobotFight-Cocos-ARM64-Offline-Core
           path: ${{ runner.temp }}/native-apk/RobotFight-Cocos-ARM64-smoke.apk
           if-no-files-found: error
