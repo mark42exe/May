@@ -135,6 +135,25 @@ int LocalProfile::battles() { return cocos2d::UserDefault::getInstance()->getInt
 int LocalProfile::wins() { return cocos2d::UserDefault::getInstance()->getIntegerForKey("rf.wins", 0); }
 int LocalProfile::losses() { return cocos2d::UserDefault::getInstance()->getIntegerForKey("rf.losses", 0); }
 
+int LocalProfile::unlockedStages() {
+    return std::clamp(cocos2d::UserDefault::getInstance()->getIntegerForKey(
+        "rf.campaign.unlocked", 1), 1, 6);
+}
+
+bool LocalProfile::isStageUnlocked(int stageIndex) {
+    return stageIndex >= 0 && stageIndex < unlockedStages();
+}
+
+void LocalProfile::recordStageVictory(int stageIndex) {
+    if (stageIndex < 0 || stageIndex >= 6) return;
+    auto* save = cocos2d::UserDefault::getInstance();
+    const std::string key = "rf.campaign.stage." + std::to_string(stageIndex) + ".complete";
+    save->setBoolForKey(key.c_str(), true);
+    const int nextUnlocked = std::min(6, std::max(unlockedStages(), stageIndex + 2));
+    save->setIntegerForKey("rf.campaign.unlocked", nextUnlocked);
+    save->flush();
+}
+
 void LocalProfile::recordResult(BattleOutcome outcome) {
     if (outcome == BattleOutcome::Ongoing) return;
     auto* save = cocos2d::UserDefault::getInstance();
