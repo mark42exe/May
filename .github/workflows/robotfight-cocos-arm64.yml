@@ -101,6 +101,20 @@ jobs:
           cp robotfight/cocos/Classes/HelloWorldScene.h "$PROJECT_DIR/Classes/HelloWorldScene.h"
           cp robotfight/cocos/Classes/RobotFightCore.cpp "$PROJECT_DIR/Classes/RobotFightCore.cpp"
           cp robotfight/cocos/Classes/RobotFightCore.h "$PROJECT_DIR/Classes/RobotFightCore.h"
+          # Ensure the new offline battle module is part of the native CMake target.
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          cmake = Path(os.environ["PROJECT_DIR"]) / "CMakeLists.txt"
+          source = cmake.read_text()
+          if "Classes/RobotFightCore.cpp" not in source:
+              source = source.replace("Classes/HelloWorldScene.cpp", "Classes/HelloWorldScene.cpp\\n    Classes/RobotFightCore.cpp")
+          if "Classes/RobotFightCore.h" not in source:
+              source = source.replace("Classes/HelloWorldScene.h", "Classes/HelloWorldScene.h\\n    Classes/RobotFightCore.h")
+          cmake.write_text(source)
+          if "Classes/RobotFightCore.cpp" not in cmake.read_text():
+              raise SystemExit("RobotFightCore.cpp was not added to the CMake target")
+          PY
 
       - name: Fetch original scene bundle from verified workflow artifact
         env:
@@ -139,7 +153,7 @@ jobs:
       - name: Verify and stage native ARM64 APK
         run: |
           set -e
-          APK="$PROJECT_DIR/proj.android/app/build/outputs/apk/debug/app-debug.apk"
+          APK="$PROJECT_DIR/proj.android/app/build/outputs/apk/debug/RobotFightNative-debug.apk"
           echo "Expected APK: $APK"
           if [ ! -s "$APK" ]; then
             echo "APK missing; locating generated APKs:"
@@ -165,5 +179,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: RobotFight-Cocos-ARM64-Offline-Core
-          path: ${{ runner.temp }}/native-apk/RobotFight-Cocos-ARM64-smoke.apk
+          path: ${{ runner.temp }}/native-apk/RobotFight-Cocos-ARM64-offline-core.apk
           if-no-files-found: error
