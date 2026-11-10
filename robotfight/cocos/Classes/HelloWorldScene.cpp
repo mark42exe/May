@@ -1,6 +1,7 @@
 #include "HelloWorldScene.h"
 #include "RobotFightCore.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
@@ -112,6 +113,8 @@ bool HelloWorld::init() {
     addChild(makeRobotView(w * 0.75f, h * 0.55f, true));
 
 
+    auto statusRef = std::make_shared<Label*>(nullptr);
+
     // Garage: cycle through original recovered part identifiers and persist each choice.
     auto openGarage = [=]() {
         auto panel = Node::create();
@@ -204,7 +207,7 @@ bool HelloWorld::init() {
             const float x = w * (0.20f + (i % 3) * 0.30f);
             const float y = h * (0.62f - (i / 3) * 0.32f);
             auto preview = Sprite::create(std::string("original/scene_thumbnail_") +
-                                           stageIds[i].substr(6) + ".png");
+                                           std::string(stageIds[i]).substr(6) + ".png");
             if (preview) {
                 preview->setPosition(x, y + h * 0.055f);
                 preview->setScale(std::min(0.42f, w * 0.13f / preview->getContentSize().width));
@@ -212,7 +215,7 @@ bool HelloWorld::init() {
             }
             auto label = Label::createWithSystemFont(stageNames[i], "Arial", 16);
             auto item = MenuItemLabel::create(label, [=](Ref*) {
-                status->setString(std::string("ARENA SELECTED: ") + stageNames[i] + "  |  READY");
+                if (*statusRef) (*statusRef)->setString(std::string("ARENA SELECTED: ") + stageNames[i] + "  |  READY");
                 panel->removeFromParent();
             });
             item->setPosition(x, y - h * 0.055f);
@@ -255,6 +258,7 @@ bool HelloWorld::init() {
     status->setPosition(w * 0.5f, h * 0.32f);
     status->setTextColor(Color4B(230, 235, 245, 255));
     addChild(status);
+    *statusRef = status;
 
     auto refresh = [=]() {
         playerHp->setString(StringUtils::format("HP %d   ENERGY %d",
