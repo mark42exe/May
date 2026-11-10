@@ -37,10 +37,19 @@ bool HelloWorld::init() {
     const float w = visible.width;
     const float h = visible.height;
 
+    // Original Toy Attack arena artwork is loaded from the recovered DCA resources.
+    if (auto arena = Sprite::create("original/background_3_1.png")) {
+        const auto textureSize = arena->getContentSize();
+        const float scale = std::max(w / textureSize.width, h / textureSize.height);
+        arena->setScale(scale);
+        arena->setPosition(Vec2(w * 0.5f, h * 0.5f));
+        addChild(arena, -3);
+    }
+
     auto bg = DrawNode::create();
-    bg->drawSolidRect(Vec2(0, 0), Vec2(w, h), Color4F(0.025f, 0.035f, 0.065f, 1));
-    bg->drawSolidRect(Vec2(0, h * 0.70f), Vec2(w, h), Color4F(0.055f, 0.085f, 0.13f, 1));
-    bg->drawSolidRect(Vec2(0, h * 0.16f), Vec2(w, h * 0.20f), Color4F(0.12f, 0.16f, 0.20f, 1));
+    bg->drawSolidRect(Vec2(0, 0), Vec2(w, h), Color4F(0.025f, 0.035f, 0.065f, 0.48f));
+    bg->drawSolidRect(Vec2(0, h * 0.70f), Vec2(w, h), Color4F(0.055f, 0.085f, 0.13f, 0.36f));
+    bg->drawSolidRect(Vec2(0, h * 0.16f), Vec2(w, h * 0.20f), Color4F(0.12f, 0.16f, 0.20f, 0.42f));
     addChild(bg, -2);
 
     auto title = Label::createWithSystemFont("TOY ATTACK  /  OFFLINE ARENA", "Arial", 26);
@@ -69,7 +78,7 @@ bool HelloWorld::init() {
         const struct PartPlacement { const char* file; Vec2 position; float scale; } parts[] = {
             {"original/base_2_0.png", Vec2(0, -42), 0.72f},
             {"original/core_1_0.png", Vec2(0, 4), 0.72f},
-            {"original/head_0_0.png", Vec2(0, 52), 0.72f},
+            {"original/head_3_5.png", Vec2(0, 52), 0.72f},
             {"original/arm_b_0_3.png", Vec2(-61, 4), 0.62f},
             {"original/arm_f_0_0.png", Vec2(61, 4), 0.62f},
         };
