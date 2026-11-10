@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - "robotfight/cocos/**"
+      - "tools/import_robotfight_assets.py"
       - ".github/workflows/robotfight-cocos-arm64.yml"
 
 permissions:
