@@ -41,6 +41,11 @@ jobs:
           test "$(find "$PROJECT_DIR/app/src/main/assets/robotfight_original/art" -type f -name '*.webp' | wc -l)" -gt 1000
           echo "Integrated recovered WebP art resources"
 
+      - name: Audit original scenes, animation data, atlases, and metadata
+        run: |
+          python3 tools/audit_robotfight_assets.py "$PROJECT_DIR/app/src/main/assets/robotfight_original/art" --out "$RUNNER_TEMP/robotfight_asset_inventory.json"
+          test -s "$RUNNER_TEMP/robotfight_asset_inventory.json"
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
@@ -89,4 +94,11 @@ jobs:
         with:
           name: RobotFight-ARM64-debug
           path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Upload recovered asset inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-Recovered-Asset-Inventory
+          path: ${{ runner.temp }}/robotfight_asset_inventory.json
           if-no-files-found: error
