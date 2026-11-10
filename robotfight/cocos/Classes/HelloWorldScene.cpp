@@ -17,6 +17,62 @@ using robotfight::LocalProfile;
 using robotfight::PartStats;
 using robotfight::RobotBuild;
 
+
+Sprite* playOriginalEffect(Node* parent, const std::string& animationFile,
+                          const Vec2& position, float scale, bool loop = false) {
+    if (!parent) return nullptr;
+    const std::string path = "original/" + animationFile;
+    const auto config = FileUtils::getInstance()->getValueMapFromFile(path);
+    if (config.empty()) return nullptr;
+
+    const auto textureIt = config.find("texture");
+    const auto fpsIt = config.find("fps");
+    const auto animationsIt = config.find("animations");
+    if (textureIt == config.end() || animationsIt == config.end()) return nullptr;
+
+    const auto animations = animationsIt->second.asValueMap();
+    const auto playIt = animations.find("PlayEffect");
+    if (playIt == animations.end()) return nullptr;
+    const auto play = playIt->second.asValueMap();
+    const auto framesIt = play.find("frames");
+    if (framesIt == play.end()) return nullptr;
+
+    const std::string atlas = "original/" + textureIt->second.asString();
+    SpriteFrameCache::getInstance()->addSpriteFramesWithFile(atlas);
+    const int fps = fpsIt == config.end() ? 24 : std::max(1, fpsIt->second.asInt());
+    Vector<SpriteFrame*> frames;
+    for (const auto& frameValue : framesIt->second.asValueVector()) {
+        const std::string spec = frameValue.asString();
+        char pattern[256] = {};
+        int first = 1, last = 1;
+        if (std::sscanf(spec.c_str(), "%255[^,],%d,%d", pattern, &first, &last) != 3)
+            continue;
+        for (int index = first; index <= last; ++index) {
+            const auto frameName = StringUtils::format(pattern, index);
+            if (auto frame = SpriteFrameCache::getInstance()->getSpriteFrameByName(frameName))
+                frames.pushBack(frame);
+        }
+    }
+    if (frames.empty()) return nullptr;
+
+    auto sprite = Sprite::createWithSpriteFrame(frames.front());
+    if (!sprite) return nullptr;
+    sprite->setPosition(position);
+    sprite->setScale(scale);
+    parent->addChild(sprite, 40);
+    auto animation = Animation::createWithSpriteFrames(frames, 1.0f / fps);
+    if (!animation) {
+        sprite->removeFromParent();
+        return nullptr;
+    }
+    if (loop) {
+        sprite->runAction(RepeatForever::create(Animate::create(animation)));
+    } else {
+        sprite->runAction(Sequence::create(Animate::create(animation), RemoveSelf::create(), nullptr));
+    }
+    return sprite;
+}
+
 RobotBuild makeDataBuild(const std::string& name,
                           const std::array<std::string, 5>& ids, const std::string& batteryId = "0_0") {
     RobotBuild build;
@@ -338,12 +394,7 @@ bool HelloWorld::init() {
                 (*botRobot)->runAction(Sequence::create(
                     MoveBy::create(0.06f, Vec2(9, 0)),
                     MoveBy::create(0.10f, Vec2(-9, 0)), nullptr));
-                if (auto hit = Sprite::create("original/hit_ef1_default.png")) {
-                    hit->setPosition(w * 0.75f, h * 0.55f);
-                    hit->setScale(0.22f);
-                    addChild(hit, 40);
-                    hit->runAction(Sequence::create(FadeOut::create(0.34f), RemoveSelf::create(), nullptr));
-                }
+                playOriginalEffect(this, "hit_ef1_default_Anim.plist", Vec2(w * 0.75f, h * 0.55f), 1.0f);
             }
             if (result.botDamage > 0) {
                 (*botRobot)->runAction(Sequence::create(
@@ -352,13 +403,11 @@ bool HelloWorld::init() {
                 (*playerRobot)->runAction(Sequence::create(
                     MoveBy::create(0.06f, Vec2(-9, 0)),
                     MoveBy::create(0.10f, Vec2(9, 0)), nullptr));
-                if (auto hit = Sprite::create("original/hit_ef2_default.png")) {
-                    hit->setPosition(w * 0.25f, h * 0.55f);
-                    hit->setScale(0.18f);
-                    addChild(hit, 40);
-                    hit->runAction(Sequence::create(FadeOut::create(0.34f), RemoveSelf::create(), nullptr));
-                }
+                playOriginalEffect(this, "hit_ef2_default_Anim.plist", Vec2(w * 0.25f, h * 0.55f), 1.0f);
             }
+            if (command == Command::Boost)
+                playOriginalEffect(this, "boost_ef1_default_Anim.plist",
+                                   (*playerRobot)->getPosition() + Vec2(-25, -48), 1.0f, true);
             if (command == Command::HeavyStrike)
                 AudioEngine::play2d("original/sfx_battle_onHitHeavy1.ogg");
             else if (command != Command::Guard)
@@ -373,10 +422,14 @@ bool HelloWorld::init() {
             if (result.outcome == BattleOutcome::PlayerWin) {
                 LocalProfile::recordResult(result.outcome);
                 status->setString("VICTORY  +2,000 COINS");
+                playOriginalEffect(this, "explosion_ef1_default_Anim.plist",
+                                   (*botRobot)->getPosition(), 1.8f);
                 AudioEngine::play2d("original/sfx_battle_robotdestroy.ogg");
             } else if (result.outcome == BattleOutcome::BotWin) {
                 LocalProfile::recordResult(result.outcome);
                 status->setString("DEFEAT  -  NO COINS AWARDED");
+                playOriginalEffect(this, "explosion_ef2_default_Anim.plist",
+                                   (*playerRobot)->getPosition(), 1.8f);
                 AudioEngine::play2d("original/sfx_battle_destroy.ogg");
             } else if (result.outcome == BattleOutcome::Draw) {
                 status->setString("DRAW  -  NO COINS AWARDED");
