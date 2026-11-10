@@ -14,8 +14,9 @@
 - Official Cocos2d-x download archive lists 3.16 (2017) and 3.17.2 (2019).
 - Official 3.16 release notes explicitly document Android ARM64 third-party libraries and the `cocos run -p android --app-abi arm64-v8a` target.
 - 3.17.2 documentation records Android testing with NDK r19c and Python 2.7.5+, which makes it a less convenient first candidate for a modern GitHub Actions image.
-- Use Cocos2d-x 3.16 as the first engine integration candidate, pinned to a known commit/tag. Do not assume this proves the original game used exactly 3.16; the original binary's exact engine version remains unconfirmed.
-- Keep 3.17.2 as a fallback if the recovered resource format or engine API points to it.
+- The original APK's `libcocos2dcpp.so` was inspected and its strings identify **Cocos2d-x 3.15.1**. Treat 3.15.1 as the compatibility target, not v4 or 3.16.
+- Cocos2d-x 3.13 introduced Android `arm64-v8a` support; the official Cocos release history documents that 64-bit third-party libraries were provided from that line onward. Therefore 3.15.1 is already from a 64-bit-capable engine line. Rebuild the matching engine and its third-party dependencies for ARM64, then port the game's custom native layer.
+- The current workflow's Cocos2d-x v4 download is a temporary test scaffold and is not the correct engine target. Do not treat its output as a port of the original game.
 
 ## Recovered game data
 
@@ -28,8 +29,8 @@
 ## Required next engineering stages
 
 1. Extract and catalogue every DCA path, dimensions, plist frame references, atlas image references, CCB header/format, and JSON/plist schema.
-2. Pin and fetch Cocos2d-x 3.16 source in CI; verify its Android ARM64 toolchain with a minimal native scene before replacing the current app shell.
-3. Build a Cocos2d-x Android project targeting only `arm64-v8a`; modernize build scripts as needed rather than relabelling the original ARM32 libraries.
+2. Pin and fetch Cocos2d-x 3.15.1 source in CI; verify the Android ARM64 engine and third-party dependencies compile from source with a compatible NDK/toolchain.
+3. Recreate the original Android project around Cocos2d-x 3.15.1 and target `arm64-v8a`; preserve the original engine API and binary/resource expectations rather than using v4 or relabelling ARM32 libraries.
 4. Reconstruct the original screens using recovered atlas frames, plist metadata, fonts, and CCB scene data wherever compatible.
 5. Reimplement offline bot selection, combat state, progression, local profile persistence, and the victory-only +2,000 coin reward.
 6. Add automated checks for ARM64 ELF libraries, asset manifest completeness, offline/no-network behavior, save persistence, and reward idempotency.
@@ -37,7 +38,7 @@
 
 ## Important constraints
 
-- The original proprietary C++ game source has not been recovered.
+- The original proprietary C++ game source has not been recovered. The original engine version is identified as Cocos2d-x 3.15.1, but the game-specific native code still has to be reconstructed or reimplemented.
 - Original ARM32 shared libraries cannot be made ARM64 by renaming or changing APK metadata.
 - The current APK is a prototype/reference, not a complete restoration.
 - Preserve the recovered source assets and document their original paths; do not replace them with generated placeholder art.
