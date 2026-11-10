@@ -213,9 +213,10 @@ bool HelloWorld::init() {
                 preview->setScale(std::min(0.42f, w * 0.13f / preview->getContentSize().width));
                 panel->addChild(preview);
             }
-            auto label = Label::createWithSystemFont(stageNames[i], "Arial", 16);
+            const std::string stageName = stageNames[i];
+            auto label = Label::createWithSystemFont(stageName, "Arial", 16);
             auto item = MenuItemLabel::create(label, [=](Ref*) {
-                if (*statusRef) (*statusRef)->setString(std::string("ARENA SELECTED: ") + stageNames[i] + "  |  READY");
+                if (*statusRef) (*statusRef)->setString(std::string("ARENA SELECTED: ") + stageName + "  |  READY");
                 panel->removeFromParent();
             });
             item->setPosition(x, y - h * 0.055f);
