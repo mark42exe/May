@@ -854,7 +854,7 @@ bool HelloWorld::init() {
         panel->addChild(heading);
         auto makeToggle = [=](const std::string& title, const std::string& key, float y,
                               std::function<void(bool)> onChanged) {
-            auto value = UserDefault::getInstance()->getBoolForKey(key, true);
+            auto value = UserDefault::getInstance()->getBoolForKey(key.c_str(), true);
             auto label = Label::createWithSystemFont("", "Arial", 22);
             auto update = [=](bool enabled) {
                 label->setString(title + std::string(": ") + (enabled ? "ON" : "OFF"));
@@ -864,7 +864,7 @@ bool HelloWorld::init() {
             update(value);
             auto item = MenuItemLabel::create(label, [=](Ref*) mutable {
                 value = !value;
-                UserDefault::getInstance()->setBoolForKey(key, value);
+                UserDefault::getInstance()->setBoolForKey(key.c_str(), value);
                 UserDefault::getInstance()->flush();
                 update(value);
                 if (onChanged) onChanged(value);
