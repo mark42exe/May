@@ -66,6 +66,22 @@ jobs:
           sed -i 's/"HelloCpp"/"Robot Fight Native"/g' "$PROJECT_DIR/Classes/AppDelegate.cpp"
           sed -i 's/android:screenOrientation="[^"]*"/android:screenOrientation="landscape"/' "$PROJECT_DIR/proj.android/app/AndroidManifest.xml"
           sed -i 's/android:label="[^"]*"/android:label="Robot Fight Native"/' "$PROJECT_DIR/proj.android/app/AndroidManifest.xml"
+          # Android 12+ requires an explicit exported value on launcher activities.
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          manifest = Path(__import__("os").environ["PROJECT_DIR"]) / "proj.android/app/AndroidManifest.xml"
+          text = manifest.read_text()
+          pattern = r'<activity\\b(?=[^>]*org\\.cocos2dx\\.cpp\\.AppActivity)[^>]*>'
+          match = re.search(pattern, text)
+          if not match:
+              raise SystemExit("Could not find Cocos AppActivity declaration")
+          tag = match.group(0)
+          if "android:exported=" not in tag:
+              updated = tag[:-1] + ' android:exported="true">'
+              text = text[:match.start()] + updated + text[match.end():]
+              manifest.write_text(text)
+          PY
           sed -i 's/PROP_BUILD_TYPE=.*/PROP_BUILD_TYPE=cmake/' "$PROJECT_DIR/proj.android/gradle.properties" || true
           mkdir -p "$PROJECT_DIR/Resources"
           cp robotfight/cocos/Classes/HelloWorldScene.cpp "$PROJECT_DIR/Classes/HelloWorldScene.cpp"
