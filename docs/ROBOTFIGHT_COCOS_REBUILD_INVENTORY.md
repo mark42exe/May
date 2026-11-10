@@ -41,3 +41,24 @@
 - Original ARM32 shared libraries cannot be made ARM64 by renaming or changing APK metadata.
 - The current APK is a prototype/reference, not a complete restoration.
 - Preserve the recovered source assets and document their original paths; do not replace them with generated placeholder art.
+
+
+## Video reference review (2026-11-10)
+
+The three supplied links identify the game publicly as **Toy Attack** by Animoca Brands, consistent with the Animoca package namespace in the supplied original APK.
+
+- `PV3FgGDyjic`: “Toy Attack - Gameplay Trailer (iOS,Android)” by TanJinGames, 20:02. The page has no captions; the browser could not expose playable frames, so this is not yet a frame-by-frame reference.
+- `Hx9fxdv422w`: “Toy Attack - Coding Robot - Demo 2” by Animoca Brands, 0:40. The available thumbnail shows the block-based robot programming interface: Variable, Operator, Value, and Action categories, with IF/THEN logic and rotate-arm actions. Captions are unavailable.
+- `z_Zuu0kzk9s`: “Toy Attack - Android Gameplay HD” by OGLPLAYS Android iOS Gameplays, 23:57. The available thumbnail shows an arena fight, PLAYER/OPPONENT labels, health indicators, pause control, and a “HEAD DESTROYED” result banner. Captions are unavailable.
+
+The first link is a broad gameplay trailer, not a separate game called Robot Fight. The latter two provide useful reference clues for Toy Attack's coding UI and arena HUD. Only thumbnails/page metadata were inspectable in this browser session; do not claim full-motion animation timing or exact screen transitions were observed.
+
+## Current CI asset-audit stage
+
+The workflow now runs `tools/audit_robotfight_assets.py` immediately after extracting the DCA archive. It inventories extensions, image dimensions where available, plist/JSON parseability, and CCB root metadata, then uploads `RobotFight-Recovered-Asset-Inventory` as a separate artifact. This is an import-preparation step, not yet a Cocos runtime integration.
+
+## Native engine import gate
+
+Before wiring scenes into Cocos, use the generated inventory to establish whether the `.ccb` resources are CocosBuilder XML/binary plists, published `.ccbi`, or a game-specific format. CocosBuilder's documented editable `.ccb` format is plist-based, while runtime `.ccbi` is a compact binary format; the matching CCBReader/NodeLoader support and custom node classes must be confirmed against the actual files. The original CocosBuilder format documentation describes this distinction: https://github.com/cocos2d/CocosBuilder/blob/v3.5.0/Documentation/X3.%20CCB%20File%20Format.md and https://github.com/cocos2d/CocosBuilder/blob/v3.5.0/Documentation/4c.%20Connecting%20with%20cocos2d-x.md.
+
+Next gate: build a minimal Cocos2d-x 3.16 arm64-v8a native scene in CI, then load a representative atlas/sprite and one compatible scene resource before porting full UI/gameplay. Do not replace the current reference APK until this native smoke test passes.
