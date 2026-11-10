@@ -118,13 +118,15 @@ bool HelloWorld::init() {
     // The fallback remains a simple diagnostic silhouette until the full scene reader is ready.
     auto makeRobotView = [&](float x, float y, bool enemy) -> Node* {
         auto robot = Node::create();
+        const auto batteryId = UserDefault::getInstance()->getStringForKey("rf.part.battery", "0_0");
+        const auto batteryTextureId = batteryId.substr(batteryId.find_last_of('_') + 1);
         const struct PartPlacement { std::string file; Vec2 position; float scale; } parts[] = {
             {(std::string("original/base_") + UserDefault::getInstance()->getStringForKey("rf.part.base", "2_0") + ".png").c_str(), Vec2(0, -42), 0.72f},
             {(std::string("original/core_") + UserDefault::getInstance()->getStringForKey("rf.part.core", "1_0") + ".png").c_str(), Vec2(0, 4), 0.72f},
             {(std::string("original/head_") + UserDefault::getInstance()->getStringForKey("rf.part.head", "3_5") + ".png").c_str(), Vec2(0, 52), 0.72f},
             {(std::string("original/arm_b_") + UserDefault::getInstance()->getStringForKey("rf.part.back", "0_3") + ".png").c_str(), Vec2(-61, 4), 0.62f},
             {(std::string("original/arm_f_") + UserDefault::getInstance()->getStringForKey("rf.part.front", "0_0") + ".png").c_str(), Vec2(61, 4), 0.62f},
-            {(std::string("original/battery_1_") + UserDefault::getInstance()->getStringForKey("rf.part.battery", "0") + ".png").c_str(), Vec2(34, -62), 0.34f},
+            {(std::string("original/battery_1_") + batteryTextureId + ".png").c_str(), Vec2(34, -62), 0.34f},
         };
         int loaded = 0;
         for (const auto& part : parts) {
@@ -188,7 +190,7 @@ bool HelloWorld::init() {
             {"FRONT ARM", "front", "arm_f_", "rf.part.front"},
             {"BATTERY", "battery", "battery_1_", "rf.part.battery"}
         };
-        const std::vector<std::string> batteryIds = {"0", "1", "2"};
+        const std::vector<std::string> batteryIds = {"0_0", "0_1", "0_2"};
         for (int i = 0; i < 6; ++i) {
             const float y = h * 0.75f - i * h * 0.095f;
             auto name = Label::createWithSystemFont(slots[i].title, "Arial", 18);
@@ -203,7 +205,7 @@ bool HelloWorld::init() {
                     std::string(slot.key) == "core" ? "1_0" :
                     std::string(slot.key) == "head" ? "3_5" :
                     std::string(slot.key) == "back" ? "0_3" :
-                    std::string(slot.key) == "battery" ? "0" : "0_0"),
+                    std::string(slot.key) == "battery" ? "0_0" : "0_0"),
                 "Arial", 19);
             current->setPosition(w * 0.56f, y);
             current->setTextColor(Color4B(255, 205, 95, 255));
