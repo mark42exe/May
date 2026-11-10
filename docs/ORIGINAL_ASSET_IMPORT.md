@@ -15,7 +15,7 @@ The native Cocos project does not yet contain this 33 MB archive. The importer i
 - a standalone `gamedata.dca`
 - `RobotFight_full_named_assets.zip`
 
-It converts WebP images to PNG for predictable Cocos image loading, preserves JSON/plist/CCB/animation/font data, writes an import manifest, and rejects unsafe archive paths or invalid DCA CRCs. Files whose names identify weapon assets are excluded from this import path.
+It converts WebP images to PNG for predictable Cocos image loading, preserves JSON/plist/CCB/animation/font data (including fictional weapon/equipment assets), writes an import manifest, and rejects unsafe archive paths or invalid DCA CRCs.
 
 ## CI import location
 
