@@ -18,7 +18,7 @@ using robotfight::PartStats;
 using robotfight::RobotBuild;
 
 RobotBuild makeDataBuild(const std::string& name,
-                          const std::array<std::string, 5>& ids) {
+                          const std::array<std::string, 5>& ids, const std::string& batteryId = "0_0") {
     RobotBuild build;
     build.id = name;
     build.displayName = name;
@@ -45,6 +45,16 @@ RobotBuild makeDataBuild(const std::string& name,
             }
         }
         build.parts[i] = stats;
+    }
+    auto batteries = catalog.find("Battery");
+    if (batteries != catalog.end()) {
+        const auto entries = batteries->second.asValueMap();
+        auto found = entries.find(batteryId);
+        if (found != entries.end()) {
+            const auto item = found->second.asValueMap();
+            const float capacity = item.count("mAh") ? item.at("mAh").asFloat() : 500.0f;
+            build.parts[0].energy = 100 + static_cast<int>(capacity / 10.0f);
+        }
     }
     return build;
 }
@@ -90,8 +100,8 @@ bool HelloWorld::init() {
         UserDefault::getInstance()->getStringForKey("rf.part.head", "3_5"),
         UserDefault::getInstance()->getStringForKey("rf.part.front", "0_0"),
         UserDefault::getInstance()->getStringForKey("rf.part.back", "0_3")
-    });
-    auto botBuild = makeDataBuild("TRAINING BOT", {"1_0", "1_0", "3_5", "0_0", "1_0"});
+    }, UserDefault::getInstance()->getStringForKey("rf.part.battery", "0_0"));
+    auto botBuild = makeDataBuild("TRAINING BOT", {"1_0", "1_0", "3_5", "0_0", "1_0"}, "0_1");
     auto battle = std::make_shared<Battle>(playerBuild, botBuild, 0x51A7u);
 
     auto playerName = Label::createWithSystemFont("PLAYER", "Arial", 19);
