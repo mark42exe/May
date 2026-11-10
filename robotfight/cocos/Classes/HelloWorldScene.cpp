@@ -160,7 +160,11 @@ bool HelloWorld::init() {
     const float h = visible.height;
 
     // Original Toy Attack arena artwork is loaded from the recovered DCA resources.
-    if (auto arena = Sprite::create("original/background_3_1.png")) {
+    // Start in the recovered training arena artwork; stage selection swaps this
+    // for the corresponding original full-scene thumbnail before a fight begins.
+    auto arena = Sprite::create("original/scene_thumbnail_11.png");
+    if (!arena) arena = Sprite::create("original/background_3_1.png");
+    if (arena) {
         const auto textureSize = arena->getContentSize();
         const float scale = std::max(w / textureSize.width, h / textureSize.height);
         arena->setScale(scale);
@@ -481,6 +485,20 @@ bool HelloWorld::init() {
             const std::string stageName = stageNames[i];
             auto label = Label::createWithSystemFont(stageName, "Arial", 16);
             auto item = MenuItemLabel::create(label, [=](Ref*) {
+                UserDefault::getInstance()->setStringForKey("rf.stage", stageIds[i]);
+                UserDefault::getInstance()->flush();
+                if (arena) {
+                    const std::string texturePath = std::string("original/scene_thumbnail_") +
+                                                    std::string(stageIds[i]).substr(6) + ".png";
+                    if (auto texture = Director::getInstance()->getTextureCache()->addImage(texturePath)) {
+                        arena->setTexture(texture);
+                        arena->setTextureRect(Rect(0, 0, texture->getContentSize().width,
+                                                   texture->getContentSize().height));
+                        arena->setScale(std::max(w / texture->getContentSize().width,
+                                                 h / texture->getContentSize().height));
+                        arena->setPosition(w * 0.5f, h * 0.5f);
+                    }
+                }
                 if (*statusRef) (*statusRef)->setString(std::string("ARENA SELECTED: ") + stageName + "  |  READY");
                 panel->removeFromParent();
             });
