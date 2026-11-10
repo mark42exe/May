@@ -139,7 +139,8 @@ jobs:
           APK="$PROJECT_DIR/proj.android/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
           echo 'Native libraries packaged in APK:'
-          unzip -l "$APK" | grep -E 'lib/arm64-v8a/[^ ]+\\.so          mkdir -p "$RUNNER_TEMP/native-apk"
+          unzip -l "$APK" | grep 'lib/arm64-v8a/'
+          mkdir -p "$RUNNER_TEMP/native-apk"
           cp "$APK" "$RUNNER_TEMP/native-apk/RobotFight-Cocos-ARM64-smoke.apk"
 
       - uses: actions/upload-artifact@v4
