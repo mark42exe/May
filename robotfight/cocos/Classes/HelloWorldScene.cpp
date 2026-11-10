@@ -352,5 +352,85 @@ bool HelloWorld::init() {
     note->setPosition(w * 0.5f, 16);
     addChild(note);
 
+    // Native recreation of the original home hub, using recovered Toy Attack artwork.
+    auto home = Node::create();
+    addChild(home, 200);
+    if (auto homeArt = Sprite::create("original/1_common_bg_1.png")) {
+        const auto size = homeArt->getContentSize();
+        homeArt->setScale(std::max(w / size.width, h / size.height));
+        homeArt->setPosition(w * 0.5f, h * 0.5f);
+        home->addChild(homeArt);
+    }
+    auto homeShade = DrawNode::create();
+    homeShade->drawSolidRect(Vec2(0, 0), Vec2(w, h), Color4F(0.01f, 0.02f, 0.04f, 0.62f));
+    home->addChild(homeShade);
+    auto homeTitle = Label::createWithSystemFont("TOY ATTACK", "Arial", 42);
+    homeTitle->setTextColor(Color4B(235, 245, 255, 255));
+    homeTitle->setPosition(w * 0.5f, h * 0.78f);
+    home->addChild(homeTitle);
+    auto homeSub = Label::createWithSystemFont("OFFLINE REBUILD  /  ARM64", "Arial", 14);
+    homeSub->setTextColor(Color4B(130, 205, 235, 255));
+    homeSub->setPosition(w * 0.5f, h * 0.71f);
+    home->addChild(homeSub);
+
+    auto infoPanel = [=](const std::string& headingText, const std::string& bodyText) {
+        auto panel = Node::create();
+        addChild(panel, 250);
+        auto dim = DrawNode::create();
+        dim->drawSolidRect(Vec2(0, 0), Vec2(w, h), Color4F(0.01f, 0.02f, 0.04f, 0.94f));
+        panel->addChild(dim);
+        auto heading = Label::createWithSystemFont(headingText, "Arial", 26);
+        heading->setPosition(w * 0.5f, h * 0.72f);
+        heading->setTextColor(Color4B(110, 220, 255, 255));
+        panel->addChild(heading);
+        auto body = Label::createWithSystemFont(bodyText, "Arial", 19);
+        body->setDimensions(w * 0.72f, h * 0.34f);
+        body->setAlignment(TextHAlignment::CENTER, TextVAlignment::CENTER);
+        body->setPosition(w * 0.5f, h * 0.47f);
+        body->setTextColor(Color4B(225, 235, 245, 255));
+        panel->addChild(body);
+        auto closeLabel = Label::createWithSystemFont("BACK", "Arial", 20);
+        auto close = MenuItemLabel::create(closeLabel, [=](Ref*) { panel->removeFromParent(); });
+        close->setPosition(w * 0.5f, h * 0.16f);
+        auto menu = Menu::create(close, nullptr);
+        menu->setPosition(Vec2::ZERO);
+        panel->addChild(menu);
+    };
+
+    auto fightLabel = Label::createWithSystemFont("FIGHT", "Arial", 24);
+    auto fightItem = MenuItemLabel::create(fightLabel, [=](Ref*) {
+        AudioEngine::play2d("original/sfx_btn_press.ogg");
+        home->removeFromParent();
+    });
+    fightItem->setPosition(w * 0.5f, h * 0.52f);
+    auto labLabel = Label::createWithSystemFont("ROBOT LAB", "Arial", 20);
+    auto labItem = MenuItemLabel::create(labLabel, [=](Ref*) { openGarage(); });
+    labItem->setPosition(w * 0.5f, h * 0.41f);
+    auto stageLabel = Label::createWithSystemFont("STAGES", "Arial", 20);
+    auto stageItem = MenuItemLabel::create(stageLabel, [=](Ref*) { openStages(); });
+    stageItem->setPosition(w * 0.5f, h * 0.31f);
+    auto profileLabel = Label::createWithSystemFont("PROFILE", "Arial", 17);
+    auto profileItem = MenuItemLabel::create(profileLabel, [=](Ref*) {
+        infoPanel("PILOT PROFILE", StringUtils::format("COINS  %d\\nWINS  %d\\nLOSSES  %d",
+            LocalProfile::coins(), LocalProfile::wins(), LocalProfile::losses()));
+    });
+    profileItem->setPosition(w * 0.36f, h * 0.19f);
+    auto questLabel = Label::createWithSystemFont("QUEST DATA", "Arial", 17);
+    auto questItem = MenuItemLabel::create(questLabel, [=](Ref*) {
+        const auto questData = FileUtils::getInstance()->getValueMapFromFile("original/RFQuestData.plist");
+        std::size_t questCount = 0;
+        std::size_t achievementGroups = 0;
+        auto list = questData.find("QuestList");
+        if (list != questData.end()) questCount = list->second.asValueVector().size();
+        auto achievements = questData.find("AchievementsDict");
+        if (achievements != questData.end()) achievementGroups = achievements->second.asValueMap().size();
+        infoPanel("RECOVERED QUEST DATA", StringUtils::format("%d original quest entries\\n%zu achievement groups\\nQuest progression is still being rebuilt.",
+            static_cast<int>(questCount), achievementGroups));
+    });
+    questItem->setPosition(w * 0.64f, h * 0.19f);
+    auto homeMenu = Menu::create(fightItem, labItem, stageItem, profileItem, questItem, nullptr);
+    homeMenu->setPosition(Vec2::ZERO);
+    home->addChild(homeMenu);
+
     return true;
 }
