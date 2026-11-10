@@ -41,7 +41,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/rf-cocos"
           cp -a "$RUNNER_TEMP/cocos2d-x/templates/cpp-template-default/." "$RUNNER_TEMP/rf-cocos/"
           cp -a "$RUNNER_TEMP/cocos2d-x" "$RUNNER_TEMP/rf-cocos/cocos2d"
-          cd "$RUNNER_TEMP/cocos2d-x"
+          cd "$RUNNER_TEMP/rf-cocos/cocos2d"
           git submodule update --init --recursive
           python3 download-deps.py
           echo "PROJECT_DIR=$RUNNER_TEMP/rf-cocos" >> "$GITHUB_ENV"
