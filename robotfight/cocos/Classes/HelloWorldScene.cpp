@@ -141,7 +141,8 @@ bool HelloWorld::init() {
     };
     auto playerRobot = std::make_shared<Node*>(makeRobotView(w * 0.25f, h * 0.55f, false));
     addChild(*playerRobot);
-    addChild(makeRobotView(w * 0.75f, h * 0.55f, true));
+    auto botRobot = std::make_shared<Node*>(makeRobotView(w * 0.75f, h * 0.55f, true));
+    addChild(*botRobot);
 
 
     auto statusRef = std::make_shared<Label*>(nullptr);
@@ -308,6 +309,34 @@ bool HelloWorld::init() {
         auto item = MenuItemLabel::create(label, [=](Ref*) {
             if (battle->outcome() != BattleOutcome::Ongoing) return;
             const auto result = battle->step(command);
+            if (result.playerDamage > 0) {
+                (*playerRobot)->runAction(Sequence::create(
+                    MoveBy::create(0.10f, Vec2(24, 0)),
+                    MoveBy::create(0.14f, Vec2(-24, 0)), nullptr));
+                (*botRobot)->runAction(Sequence::create(
+                    MoveBy::create(0.06f, Vec2(9, 0)),
+                    MoveBy::create(0.10f, Vec2(-9, 0)), nullptr));
+                if (auto hit = Sprite::create("original/hit_ef1_default.png")) {
+                    hit->setPosition(w * 0.75f, h * 0.55f);
+                    hit->setScale(0.22f);
+                    addChild(hit, 40);
+                    hit->runAction(Sequence::create(FadeOut::create(0.34f), RemoveSelf::create(), nullptr));
+                }
+            }
+            if (result.botDamage > 0) {
+                (*botRobot)->runAction(Sequence::create(
+                    MoveBy::create(0.10f, Vec2(-24, 0)),
+                    MoveBy::create(0.14f, Vec2(24, 0)), nullptr));
+                (*playerRobot)->runAction(Sequence::create(
+                    MoveBy::create(0.06f, Vec2(-9, 0)),
+                    MoveBy::create(0.10f, Vec2(9, 0)), nullptr));
+                if (auto hit = Sprite::create("original/hit_ef2_default.png")) {
+                    hit->setPosition(w * 0.25f, h * 0.55f);
+                    hit->setScale(0.18f);
+                    addChild(hit, 40);
+                    hit->runAction(Sequence::create(FadeOut::create(0.34f), RemoveSelf::create(), nullptr));
+                }
+            }
             if (command == Command::HeavyStrike)
                 AudioEngine::play2d("original/sfx_battle_onHitHeavy1.ogg");
             else if (command != Command::Guard)
@@ -400,6 +429,7 @@ bool HelloWorld::init() {
     auto fightLabel = Label::createWithSystemFont("FIGHT", "Arial", 24);
     auto fightItem = MenuItemLabel::create(fightLabel, [=](Ref*) {
         AudioEngine::play2d("original/sfx_btn_press.ogg");
+        AudioEngine::play2d("original/sfx_battle_startBell.ogg");
         home->removeFromParent();
     });
     fightItem->setPosition(w * 0.5f, h * 0.52f);
