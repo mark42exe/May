@@ -293,10 +293,21 @@ bool HelloWorld::init() {
         playOriginalSoundEvent("press");
         auto panel = Node::create();
         addChild(panel, 300);
+        if (auto backdrop = Sprite::create("original/editor_BG_tablet_01.png")) {
+            const auto size = backdrop->getContentSize();
+            backdrop->setScale(std::max(w / size.width, h / size.height));
+            backdrop->setPosition(w * 0.5f, h * 0.5f);
+            panel->addChild(backdrop, -2);
+        }
         auto shade = DrawNode::create();
-        shade->drawSolidRect(Vec2(0, 0), Vec2(w, h), Color4F(0.015f, 0.025f, 0.05f, 0.96f));
-        panel->addChild(shade);
-        auto heading = Label::createWithSystemFont("ROBOT LAB  /  PARTS", "Arial", 27);
+        shade->drawSolidRect(Vec2(0, 0), Vec2(w, h), Color4F(0.005f, 0.025f, 0.055f, 0.42f));
+        panel->addChild(shade, -1);
+        if (auto header = Sprite::create("original/ui_header.png")) {
+            header->setPosition(w * 0.5f, h * 0.88f);
+            header->setScale(0.95f);
+            panel->addChild(header, 1);
+        }
+        auto heading = Label::createWithSystemFont("ROBOT LAB  /  PARTS", "Arial-BOLD", 27);
         heading->setPosition(w * 0.5f, h * 0.88f);
         heading->setTextColor(Color4B(110, 220, 255, 255));
         panel->addChild(heading);
@@ -322,6 +333,12 @@ bool HelloWorld::init() {
         };
         for (int i = 0; i < 6; ++i) {
             const float y = h * 0.75f - i * h * 0.095f;
+            if (auto rowPanel = Sprite::create("original/editor_stats_panel.png")) {
+                rowPanel->setPosition(w * 0.54f, y);
+                rowPanel->setScale(0.27f);
+                rowPanel->setOpacity(205);
+                panel->addChild(rowPanel, 1);
+            }
             auto name = Label::createWithSystemFont(slots[i].title, "Arial", 18);
             name->setAnchorPoint(Vec2(1, 0.5f));
             name->setPosition(w * 0.36f, y);
@@ -401,10 +418,21 @@ bool HelloWorld::init() {
     auto openStages = [=]() {
         auto panel = Node::create();
         addChild(panel, 300);
+        if (auto backdrop = Sprite::create("original/editor_BG_tablet_02.png")) {
+            const auto size = backdrop->getContentSize();
+            backdrop->setScale(std::max(w / size.width, h / size.height));
+            backdrop->setPosition(w * 0.5f, h * 0.5f);
+            panel->addChild(backdrop, -2);
+        }
         auto shade = DrawNode::create();
-        shade->drawSolidRect(Vec2(0, 0), Vec2(w, h), Color4F(0.015f, 0.025f, 0.05f, 0.96f));
-        panel->addChild(shade);
-        auto heading = Label::createWithSystemFont("SELECT ARENA", "Arial", 27);
+        shade->drawSolidRect(Vec2(0, 0), Vec2(w, h), Color4F(0.005f, 0.025f, 0.055f, 0.42f));
+        panel->addChild(shade, -1);
+        if (auto header = Sprite::create("original/ui_header.png")) {
+            header->setPosition(w * 0.5f, h * 0.88f);
+            header->setScale(0.95f);
+            panel->addChild(header, 1);
+        }
+        auto heading = Label::createWithSystemFont("SELECT ARENA", "Arial-BOLD", 27);
         heading->setPosition(w * 0.5f, h * 0.88f);
         heading->setTextColor(Color4B(110, 220, 255, 255));
         panel->addChild(heading);
@@ -413,12 +441,17 @@ bool HelloWorld::init() {
         for (int i = 0; i < 6; ++i) {
             const float x = w * (0.20f + (i % 3) * 0.30f);
             const float y = h * (0.62f - (i / 3) * 0.32f);
+            if (auto card = Sprite::create("original/story_level_panel.png")) {
+                card->setPosition(x, y);
+                card->setScale(0.22f);
+                panel->addChild(card, 0);
+            }
             auto preview = Sprite::create(std::string("original/scene_thumbnail_") +
                                            std::string(stageIds[i]).substr(6) + ".png");
             if (preview) {
-                preview->setPosition(x, y + h * 0.055f);
-                preview->setScale(std::min(0.42f, w * 0.13f / preview->getContentSize().width));
-                panel->addChild(preview);
+                preview->setPosition(x, y + h * 0.045f);
+                preview->setScale(std::min(0.085f, w * 0.105f / preview->getContentSize().width));
+                panel->addChild(preview, 1);
             }
             const std::string stageName = stageNames[i];
             auto label = Label::createWithSystemFont(stageName, "Arial", 16);
