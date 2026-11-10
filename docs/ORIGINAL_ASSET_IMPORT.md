@@ -73,6 +73,6 @@ Other recovered configuration:
 
 The RCCB files begin with a proprietary RCCB header and are not standard Cocos Creator/CCBReader files. They are retained intact as source references; the port must recreate their layouts and behaviour in native Cocos2d-x nodes.
 
-The DCA resource archive does not include the OGG files named by SoundEvents.plist. Those sound references are catalogued, but the corresponding audio payloads still need to be recovered from an original package or separately supplied sound archive.
+The DCA itself does not include audio, but the recovered source APK stores 53 original audio files beside it (OGG, WAV and M4A). The importer now extracts these audio files and the companion font into the native resource tree.
 
 The recovered data is not the original proprietary C++ game source. Collision polygons, part stats, stage rules, AI chip definitions, and UI assets can be reused as data, but the runtime systems must be reimplemented and validated.
