@@ -388,7 +388,9 @@ jobs:
           APK="$RUNNER_TEMP/final-apk/ToyAttack_ARM64.apk"
           test -s "$APK"
           unzip -t "$APK" >/dev/null
-          aapt dump badging "$APK" > "$RUNNER_TEMP/apk-badging.txt"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$AAPT"
+          "$AAPT" dump badging "$APK" > "$RUNNER_TEMP/apk-badging.txt"
           grep -q "package: name='com.animocabrands.robotfight.restored'" "$RUNNER_TEMP/apk-badging.txt"
           grep -q "sdkVersion:'21'" "$RUNNER_TEMP/apk-badging.txt"
           grep -q "targetSdkVersion:'24'" "$RUNNER_TEMP/apk-badging.txt"
