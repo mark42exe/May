@@ -3,6 +3,10 @@
 import importlib.util
 import pathlib
 import struct
+import sys
+import zipfile
+from unittest import mock
+from PIL import Image
 import tempfile
 import unittest
 import zlib
@@ -51,6 +55,31 @@ class ImporterHardeningTests(unittest.TestCase):
             self.assertEqual(count, 1)
             self.assertEqual((root / "asset.bin").read_bytes(), b"asset-data")
             self.assertTrue((root / "_archive_manifest.json").is_file())
+
+    def test_webp_conversion_does_not_duplicate_or_overwrite_png_manifest_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            archive_path = root / "assets.zip"
+            output = root / "out"
+            png_path = root / "source.png"
+            webp_path = root / "source.webp"
+            Image.new("RGBA", (2, 2), (255, 0, 0, 255)).save(png_path, format="PNG")
+            Image.new("RGBA", (2, 2), (0, 0, 255, 255)).save(webp_path, format="WEBP")
+            with zipfile.ZipFile(archive_path, "w") as archive:
+                archive.write(png_path, "bundle/icon.png")
+                archive.write(webp_path, "bundle/icon.webp")
+            with mock.patch.object(sys, "argv", [
+                "import_robotfight_assets.py", "--input", str(archive_path),
+                "--output", str(output)
+            ]):
+                IMPORTER.main()
+            import json
+            manifest = json.loads((output / "original_asset_manifest.json").read_text())
+            self.assertEqual(manifest["files"], ["icon.png"])
+            self.assertEqual(manifest["imported_files"], 1)
+            with Image.open(output / "icon.png") as result:
+                self.assertEqual(result.convert("RGBA").getpixel((0, 0)), (255, 0, 0, 255))
+            self.assertEqual(manifest["counts"]["webp_png_name_collisions_skipped"], 1)
 
     def test_rejects_path_traversal(self):
         with tempfile.TemporaryDirectory() as tmp:
