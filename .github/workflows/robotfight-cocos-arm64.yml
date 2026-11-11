@@ -165,7 +165,7 @@ jobs:
           for key, value in values.items():
               if key not in seen:
                   result.append(f"{key} := {value}")
-          path.write_text("\\n".join(result) + "\\n")
+          path.write_text("\n".join(result) + "\n")
           check = path.read_text()
           for key, value in values.items():
               if f"{key} := {value}" not in check:
