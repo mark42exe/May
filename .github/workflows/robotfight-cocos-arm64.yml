@@ -288,7 +288,7 @@ jobs:
       - name: Install Android SDK components for Cocos template
         run: |
           set -euo pipefail
-          sdkmanager "platforms;android-24" "build-tools;25.0.0"
+          sdkmanager "platforms;android-24" "build-tools;25.0.0" "build-tools;35.0.0"
 
       - name: Set up Java 8 for legacy Cocos Gradle template
         uses: actions/setup-java@v4
@@ -428,7 +428,7 @@ jobs:
                       loads.append(p_align)
               if not loads or any(a < 0x4000 or a & (a - 1) for a in loads):
                   raise SystemExit(f"ELF PT_LOAD alignment below 16 KB or invalid: {loads}")
-              if "RFBattleLayer.ccb" not in z.namelist():
+              if not any(name.endswith("/RFBattleLayer.ccb") or name == "RFBattleLayer.ccb" for name in z.namelist()):
                   raise SystemExit("Missing recovered RFBattleLayer.ccb scene")
               print("APK validation passed; ELF PT_LOAD alignment:", loads)
           PY
