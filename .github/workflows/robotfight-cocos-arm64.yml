@@ -93,31 +93,6 @@ jobs:
           print("Verified string.h declarations for allocator memset")
           PY
 
-      - name: Patch legacy Cocos fixed-point conversion for modern Clang
-        run: |
-          set -euo pipefail
-          SOURCE="$PROJECT_DIR/cocos2d/external/android-specific/pvmp3dec/src/pvmp3_alias_reduction.cpp"
-          test -s "$SOURCE"
-          python3 - "$SOURCE" <<'PY'
-          from pathlib import Path
-          import sys
-          path = Path(sys.argv[1])
-          source = path.read_text()
-          import re
-          pattern = r"0x7FFFFFFF\s*/\s*\(float\)\s*18"
-          replacement = "(float)0x7FFFFFFF / 18.0f"
-          source, count = re.subn(pattern, replacement, source, count=1)
-          if count:
-              path.write_text(source)
-              print("Patched legacy pvmp3 integer-to-float division")
-          elif "(float)0x7FFFFFFF / 18.0f" in source:
-              print("pvmp3 conversion already uses explicit floating-point operands")
-          else:
-              candidates = [line.strip() for line in source.splitlines() if "0x7FFFFFFF" in line or "18" in line and "1.0f" in line]
-              print("No matching legacy conversion expression; source candidates:", candidates[:8])
-              print("Leaving upstream decoder unchanged; compiler diagnostics will identify any required compatibility flag")
-          PY
-
       - name: Patch legacy Cocos process tracker POSIX declarations
         run: |
           set -euo pipefail
@@ -195,7 +170,14 @@ jobs:
           for key, value in values.items():
               if f"{key} := {value}" not in check:
                   raise SystemExit(f"Failed to configure {key}")
-          print("Configured ARM64, Android 21, and static libc++")
+          # Cocos 3.15.1's bundled pvmp3 decoder triggers a modern Clang
+          # precision warning for its legacy fixed-point constant. Keep it
+          # visible but do not promote this specific compatibility warning to
+          # an error; all other compiler diagnostics retain their normal policy.
+          if "APP_CPPFLAGS += -Wno-error=implicit-const-int-float-conversion" not in check:
+              with path.open("a") as stream:
+                  stream.write("APP_CPPFLAGS += -Wno-error=implicit-const-int-float-conversion\\n")
+          print("Configured ARM64, Android 21, static libc++, and legacy pvmp3 warning compatibility")
           PY
           python3 - <<'PY'
           from pathlib import Path
