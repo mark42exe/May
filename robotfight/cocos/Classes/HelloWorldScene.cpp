@@ -1328,6 +1328,8 @@ bool HelloWorld::init() {
             if (*activeModal) {
                 (*activeModal)->removeFromParent();
                 *activeModal = nullptr;
+                modalFocusItems->clear();
+                *modalFocusIndex = 0;
             } else if (!home->isVisible()) {
                 returnToHome();
                 *focusIndex = 0;
