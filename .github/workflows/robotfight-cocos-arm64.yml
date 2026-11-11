@@ -9,6 +9,7 @@ on:
       - "tools/audit_robot_part_geometry.py"
       - "tools/audit_robotfight_stage_gallery.py"
       - "tools/validate_imported_robotfight_resources.py"
+      - "tools/stage_recovered_robotfight_scenes.py"
       - ".github/workflows/robotfight-cocos-arm64.yml"
 
 concurrency:
@@ -231,6 +232,11 @@ jobs:
           set -euo pipefail
           python3 -m pip install --quiet pillow
           python3 tools/import_robotfight_assets.py --input "$ORIGINAL_APK" --output "$PROJECT_DIR/Resources/original"
+          # The 138 recovered RCCB scene files are supplied by the separate
+          # verified scene-bundle artifact, not by the DCA inside the APK.
+          # Stage them into the same runtime resource root expected by Cocos
+          # and by the resource preflight/audit tools.
+          python3 tools/stage_recovered_robotfight_scenes.py "$PROJECT_DIR/Resources" "$PROJECT_DIR/Resources/original"
           python3 - "$PROJECT_DIR/Resources/original" <<'PY'
           from pathlib import Path
           import json, sys
