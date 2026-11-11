@@ -398,11 +398,15 @@ bool HelloWorld::init() {
 
 
     auto statusRef = std::make_shared<Label*>(nullptr);
+    // Track the top-most modal so Android Back closes dialogs before leaving a screen.
+    auto activeModal = std::make_shared<Node*>(nullptr);
 
     // Garage: cycle through original recovered part identifiers and persist each choice.
     auto openGarage = [=]() {
         playOriginalSoundEvent("press");
         auto panel = Node::create();
+
+        *activeModal = panel;
         addChild(panel, 300);
         if (auto backdrop = Sprite::create("original/editor_BG_tablet_01.png")) {
             const auto size = backdrop->getContentSize();
@@ -578,7 +582,8 @@ bool HelloWorld::init() {
         panel->addChild(presetMenu);
 
         auto closeLabel = Label::createWithSystemFont("BACK", "Arial", 20);
-        auto close = MenuItemLabel::create(closeLabel, [=](Ref*) { panel->removeFromParent(); });
+        auto close = MenuItemLabel::create(closeLabel, [=](Ref*) { if (*activeModal == panel) *activeModal = nullptr;
+                panel->removeFromParent(); });
         close->setPosition(w * 0.5f, h * 0.075f);
         auto closeMenu = Menu::create(close, nullptr);
         closeMenu->setPosition(Vec2::ZERO);
@@ -589,6 +594,8 @@ bool HelloWorld::init() {
     auto homeRef = std::make_shared<Node*>(nullptr);
     auto openStages = [=]() {
         auto panel = Node::create();
+
+        *activeModal = panel;
         addChild(panel, 300);
         if (auto backdrop = Sprite::create("original/editor_BG_tablet_02.png")) {
             const auto size = backdrop->getContentSize();
@@ -672,6 +679,7 @@ bool HelloWorld::init() {
                     }
                 }
                 if (*statusRef) (*statusRef)->setString(std::string("ARENA SELECTED: ") + stageName + "  |  READY");
+                if (*activeModal == panel) *activeModal = nullptr;
                 panel->removeFromParent();
             });
             item->setPosition(x, y - h * 0.055f);
@@ -680,7 +688,8 @@ bool HelloWorld::init() {
             panel->addChild(menu);
         }
         auto closeLabel = Label::createWithSystemFont("BACK", "Arial", 20);
-        auto close = MenuItemLabel::create(closeLabel, [=](Ref*) { panel->removeFromParent(); });
+        auto close = MenuItemLabel::create(closeLabel, [=](Ref*) { if (*activeModal == panel) *activeModal = nullptr;
+                panel->removeFromParent(); });
         close->setPosition(w * 0.5f, h * 0.08f);
         auto closeMenu = Menu::create(close, nullptr);
         closeMenu->setPosition(Vec2::ZERO);
@@ -953,6 +962,8 @@ bool HelloWorld::init() {
 
     auto infoPanel = [=](const std::string& headingText, const std::string& bodyText) {
         auto panel = Node::create();
+
+        *activeModal = panel;
         addChild(panel, 250);
         auto dim = DrawNode::create();
         dim->drawSolidRect(Vec2(0, 0), Vec2(w, h), Color4F(0.01f, 0.02f, 0.04f, 0.94f));
@@ -968,7 +979,8 @@ bool HelloWorld::init() {
         body->setTextColor(Color4B(225, 235, 245, 255));
         panel->addChild(body);
         auto closeLabel = Label::createWithSystemFont("BACK", "Arial", 20);
-        auto close = MenuItemLabel::create(closeLabel, [=](Ref*) { panel->removeFromParent(); });
+        auto close = MenuItemLabel::create(closeLabel, [=](Ref*) { if (*activeModal == panel) *activeModal = nullptr;
+                panel->removeFromParent(); });
         close->setPosition(w * 0.5f, h * 0.16f);
         auto menu = Menu::create(close, nullptr);
         menu->setPosition(Vec2::ZERO);
@@ -1064,6 +1076,8 @@ bool HelloWorld::init() {
     auto settingsLabel = Label::createWithSystemFont("SETTINGS", "Arial", 15);
     auto settingsItem = MenuItemLabel::create(settingsLabel, [=](Ref*) {
         auto panel = Node::create();
+
+        *activeModal = panel;
         addChild(panel, 260);
         auto shade = DrawNode::create();
         shade->drawSolidRect(Vec2(0, 0), Vec2(w, h), Color4F(0.01f, 0.02f, 0.04f, 0.96f));
@@ -1104,7 +1118,8 @@ bool HelloWorld::init() {
         });
         makeToggle("SOUND EFFECTS", "rf.audio.effects", h * 0.43f, nullptr);
         auto backLabel = Label::createWithSystemFont("BACK", "Arial", 20);
-        auto back = MenuItemLabel::create(backLabel, [=](Ref*) { panel->removeFromParent(); });
+        auto back = MenuItemLabel::create(backLabel, [=](Ref*) { if (*activeModal == panel) *activeModal = nullptr;
+                panel->removeFromParent(); });
         back->setPosition(w * 0.5f, h * 0.20f);
         auto backMenu = Menu::create(back, nullptr);
         backMenu->setPosition(Vec2::ZERO);
@@ -1115,15 +1130,62 @@ bool HelloWorld::init() {
     homeMenu->setPosition(Vec2::ZERO);
     home->addChild(homeMenu, 10);
 
-    // Android hardware Back returns from the battle view to the home hub.
+    // D-pad / keyboard navigation for the primary native menus.
+    // This focuses navigation and profile controls only; it does not alter game rules.
+    std::vector<MenuItem*> homeFocusItems = {
+        fightItem, labItem, stageItem, profileItem, questItem, settingsItem
+    };
+    std::vector<MenuItem*> battleFocusItems = {garageItem, stagesItem, homeItem};
+    auto focusIndex = std::make_shared<int>(0);
+    auto focusedItems = [=]() -> const std::vector<MenuItem*>& {
+        return home->isVisible() ? homeFocusItems : battleFocusItems;
+    };
+    auto showFocus = [=]() {
+        const auto& items = focusedItems();
+        if (items.empty()) return;
+        *focusIndex = std::max(0, std::min(*focusIndex, static_cast<int>(items.size()) - 1));
+        for (std::size_t i = 0; i < items.size(); ++i) {
+            if (!items[i]) continue;
+            if (static_cast<int>(i) == *focusIndex) items[i]->selected();
+            else items[i]->unselected();
+        }
+    };
+    showFocus();
+
+    // Android hardware Back first dismisses the active modal, then returns home.
     auto keyboardListener = EventListenerKeyboard::create();
     keyboardListener->onKeyReleased = [=](EventKeyboard::KeyCode keyCode, Event*) {
-        if (keyCode != EventKeyboard::KeyCode::KEY_BACK &&
-            keyCode != EventKeyboard::KeyCode::KEY_ESCAPE) return;
-        if (!home->isVisible()) {
-            home->setVisible(true);
-        } else {
-            Director::getInstance()->end();
+        if (keyCode == EventKeyboard::KeyCode::KEY_BACK ||
+            keyCode == EventKeyboard::KeyCode::KEY_ESCAPE) {
+            if (*activeModal) {
+                (*activeModal)->removeFromParent();
+                *activeModal = nullptr;
+            } else if (!home->isVisible()) {
+                home->setVisible(true);
+                *focusIndex = 0;
+                showFocus();
+            } else {
+                Director::getInstance()->end();
+            }
+            return;
+        }
+
+        const auto& items = focusedItems();
+        if (items.empty()) return;
+        const bool previous = keyCode == EventKeyboard::KeyCode::KEY_LEFT ||
+            keyCode == EventKeyboard::KeyCode::KEY_UP;
+        const bool next = keyCode == EventKeyboard::KeyCode::KEY_RIGHT ||
+            keyCode == EventKeyboard::KeyCode::KEY_DOWN;
+        if (previous || next) {
+            *focusIndex = (*focusIndex + (previous ? static_cast<int>(items.size()) - 1 : 1)) %
+                static_cast<int>(items.size());
+            showFocus();
+        } else if (keyCode == EventKeyboard::KeyCode::KEY_ENTER ||
+                   keyCode == EventKeyboard::KeyCode::KEY_KP_ENTER ||
+                   keyCode == EventKeyboard::KeyCode::KEY_SPACE) {
+            const int index = std::max(0, std::min(*focusIndex, static_cast<int>(items.size()) - 1));
+            if (items[static_cast<std::size_t>(index)]) items[static_cast<std::size_t>(index)]->activate();
+            showFocus();
         }
     };
     _eventDispatcher->addEventListenerWithSceneGraphPriority(keyboardListener, this);
