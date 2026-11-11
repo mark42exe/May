@@ -182,6 +182,7 @@ Scene* HelloWorld::createScene() {
 
 bool HelloWorld::init() {
     if (!Scene::init()) return false;
+    LocalProfile::validateSavedData();
     auto menuMusicId = std::make_shared<int>(AudioEngine::INVALID_AUDIO_ID);
     if (UserDefault::getInstance()->getBoolForKey("rf.audio.music", true))
         *menuMusicId = AudioEngine::play2d("original/intro_bgm.wav", true, 0.42f);
