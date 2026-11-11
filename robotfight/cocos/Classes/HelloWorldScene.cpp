@@ -1133,7 +1133,7 @@ bool HelloWorld::init() {
         for (int stage = 0; stage < 6; ++stage)
             if (LocalProfile::isStageComplete(stage)) ++clearedStages;
         infoPanel("PILOT PROFILE", StringUtils::format(
-            "PILOT LEVEL  %d\\nEXPERIENCE  %d / %d XP\\nNEXT LEVEL  %d XP\\n\\nCOINS  %d\\nWINS  %d\\nLOSSES  %d\\n\\nCAMPAIGN  %d / 6 CLEARED\\nSTAGES UNLOCKED  %d / 6",
+            "PILOT LEVEL  %d\nEXPERIENCE  %d / %d XP\nNEXT LEVEL  %d XP\n\nCOINS  %d\nWINS  %d\nLOSSES  %d\n\nCAMPAIGN  %d / 6 CLEARED\nSTAGES UNLOCKED  %d / 6",
             LocalProfile::pilotLevel(), LocalProfile::experienceIntoLevel(), 250,
             LocalProfile::experienceToNextLevel(), LocalProfile::coins(),
             LocalProfile::wins(), LocalProfile::losses(), clearedStages,
@@ -1145,8 +1145,6 @@ bool HelloWorld::init() {
         const auto questData = FileUtils::getInstance()->getValueMapFromFile("original/RFQuestData.plist");
         std::size_t questCount = 0;
         std::size_t achievementCount = 0;
-        int trackedAchievements = 0;
-        int completedTrackedAchievements = 0;
         std::vector<int> battleTargets;
         std::vector<int> winTargets;
         const auto list = questData.find("QuestList");
@@ -1158,41 +1156,115 @@ bool HelloWorld::init() {
                 const auto entries = group.second.asValueVector();
                 achievementCount += entries.size();
                 if (group.first != "battle" && group.first != "battleWins") continue;
-                const int current = group.first == "battle" ? LocalProfile::battles() : LocalProfile::wins();
+                auto& targets = group.first == "battle" ? battleTargets : winTargets;
                 for (const auto& entry : entries) {
                     const auto fields = entry.asValueMap();
                     const auto requirement = fields.find("requirement");
                     if (requirement == fields.end()) continue;
                     const int target = std::atoi(requirement->second.asString().c_str());
-                    if (target <= 0) continue;
-                    ++trackedAchievements;
-                    if (current >= target) ++completedTrackedAchievements;
-                    (group.first == "battle" ? battleTargets : winTargets).push_back(target);
+                    if (target > 0) targets.push_back(target);
                 }
             }
         }
-        std::sort(battleTargets.begin(), battleTargets.end());
-        battleTargets.erase(std::unique(battleTargets.begin(), battleTargets.end()), battleTargets.end());
-        std::sort(winTargets.begin(), winTargets.end());
-        winTargets.erase(std::unique(winTargets.begin(), winTargets.end()), winTargets.end());
+        const auto normalizeTargets = [](std::vector<int>& targets) {
+            std::sort(targets.begin(), targets.end());
+            targets.erase(std::unique(targets.begin(), targets.end()), targets.end());
+        };
+        normalizeTargets(battleTargets);
+        normalizeTargets(winTargets);
 
-        std::string milestoneLines = "\\n\\nRECOVERED MILESTONES";
-        const auto appendMilestones = [&](const char* label, const std::vector<int>& targets, int current) {
-            const std::size_t limit = std::min<std::size_t>(4, targets.size());
-            for (std::size_t i = 0; i < limit; ++i) {
-                milestoneLines += StringUtils::format("\\n%s %d  %s", label, targets[i],
-                    current >= targets[i] ? "[DONE]" : "[LOCKED]");
+        auto panel = Node::create();
+        modalFocusItems->clear();
+        *modalFocusIndex = 0;
+        *activeModal = panel;
+        openModalAnimation(panel);
+        addVisibleChild(panel, 250);
+        auto shade = DrawNode::create();
+        shade->drawSolidRect(Vec2(0, 0), Vec2(w, h), Color4F(0.005f, 0.018f, 0.035f, 0.96f));
+        panel->addChild(shade, -1);
+        if (auto header = Sprite::create("original/ui_header.png")) {
+            header->setPosition(w * 0.5f, h * 0.84f);
+            header->setScale(0.95f);
+            panel->addChild(header);
+        }
+        auto heading = Label::createWithSystemFont("QUESTS & ACHIEVEMENTS", "Arial-BOLD", 25);
+        heading->setPosition(w * 0.5f, h * 0.84f);
+        heading->setTextColor(Color4B(115, 220, 255, 255));
+        panel->addChild(heading, 2);
+        auto summary = Label::createWithSystemFont(
+            StringUtils::format("%d RECOVERED QUESTS     %d ORIGINAL ACHIEVEMENTS",
+                static_cast<int>(questCount), static_cast<int>(achievementCount)),
+            "Arial", 13);
+        summary->setPosition(w * 0.5f, h * 0.765f);
+        summary->setTextColor(Color4B(190, 210, 225, 255));
+        panel->addChild(summary, 2);
+
+        const auto addMilestoneRows = [=](const char* title, const std::vector<int>& targets,
+                                          int current, float startY) {
+            auto section = Label::createWithSystemFont(title, "Arial-BOLD", 17);
+            section->setAnchorPoint(Vec2(0, 0.5f));
+            section->setPosition(w * 0.12f, startY + h * 0.045f);
+            section->setTextColor(Color4B(255, 210, 115, 255));
+            panel->addChild(section, 2);
+            auto next = std::upper_bound(targets.begin(), targets.end(), current);
+            std::size_t first = next == targets.begin() ? 0 :
+                static_cast<std::size_t>(next - targets.begin() - 1);
+            const std::size_t count = std::min<std::size_t>(3,
+                targets.size() > first ? targets.size() - first : 0);
+            if (count == 0) {
+                auto empty = Label::createWithSystemFont("No recovered milestones in this category",
+                    "Arial", 13);
+                empty->setPosition(w * 0.5f, startY);
+                empty->setTextColor(Color4B(155, 175, 195, 255));
+                panel->addChild(empty, 2);
+                return;
+            }
+            for (std::size_t i = 0; i < count; ++i) {
+                const int target = targets[first + i];
+                const float y = startY - static_cast<float>(i) * h * 0.052f;
+                const float ratio = std::min(1.0f, static_cast<float>(current) /
+                    static_cast<float>(std::max(1, target)));
+                auto label = Label::createWithSystemFont(
+                    StringUtils::format("%s  %d / %d",
+                        current >= target ? "COMPLETE" : "IN PROGRESS", current, target),
+                    "Arial", 13);
+                label->setAnchorPoint(Vec2(0, 0.5f));
+                label->setPosition(w * 0.16f, y);
+                label->setTextColor(current >= target ? Color4B(125, 235, 185, 255) :
+                                                       Color4B(220, 230, 240, 255));
+                panel->addChild(label, 2);
+                auto track = DrawNode::create();
+                const Vec2 origin(w * 0.58f, y - 4.0f);
+                const float barWidth = w * 0.25f;
+                track->drawSolidRect(origin, origin + Vec2(barWidth, 8.0f),
+                                     Color4F(0.10f, 0.16f, 0.22f, 1.0f));
+                if (ratio > 0.0f)
+                    track->drawSolidRect(origin, origin + Vec2(barWidth * ratio, 8.0f),
+                                         current >= target ? Color4F(0.20f, 0.78f, 0.55f, 1.0f) :
+                                                             Color4F(0.18f, 0.62f, 0.88f, 1.0f));
+                panel->addChild(track, 2);
             }
         };
-        appendMilestones("BATTLES", battleTargets, LocalProfile::battles());
-        appendMilestones("WINS", winTargets, LocalProfile::wins());
+        addMilestoneRows("BATTLE MILESTONES", battleTargets, LocalProfile::battles(), h * 0.65f);
+        addMilestoneRows("WIN MILESTONES", winTargets, LocalProfile::wins(), h * 0.43f);
 
-        const std::string body = StringUtils::format(
-            "%d recovered quests\\n%d original achievements\\n\\nBATTLES  %d\\nWINS  %d\\n\\nBATTLE ACHIEVEMENTS  %d / %d%s\\n\\nOther quest triggers are not yet reconstructed.",
-            static_cast<int>(questCount), static_cast<int>(achievementCount),
-            LocalProfile::battles(), LocalProfile::wins(),
-            completedTrackedAchievements, trackedAchievements, milestoneLines.c_str());
-        infoPanel("QUESTS & ACHIEVEMENTS", body);
+        auto note = Label::createWithSystemFont(
+            "Other quest triggers are recovered as data but are not yet connected to gameplay.",
+            "Arial", 11);
+        note->setDimensions(w * 0.78f, h * 0.05f);
+        note->setAlignment(TextHAlignment::CENTER, TextVAlignment::CENTER);
+        note->setPosition(w * 0.5f, h * 0.12f);
+        note->setTextColor(Color4B(140, 160, 180, 255));
+        panel->addChild(note, 2);
+        auto backLabel = Label::createWithSystemFont("BACK", "Arial-BOLD", 19);
+        auto back = MenuItemLabel::create(backLabel, [=](Ref*) { closeModal(panel); });
+        modalFocusItems->push_back(back);
+        back->setPosition(w * 0.5f, h * 0.065f);
+        auto backMenu = Menu::create(back, nullptr);
+        backMenu->setPosition(Vec2::ZERO);
+        panel->addChild(backMenu, 3);
+        back->selected();
+        back->setScale(1.08f);
     });
     questItem->setPosition(w * 0.77f, h * 0.13f);
     auto settingsLabel = Label::createWithSystemFont("SETTINGS", "Arial", 15);
