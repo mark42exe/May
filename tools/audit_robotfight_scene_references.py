@@ -106,7 +106,7 @@ def main() -> None:
         "resolved_reference_count": len(found),
         "missing_reference_count": len(missing),
         "invalid_reference_count": len(invalid_references),
-        "custom_node_class_counts": dict(class_counts.most_common()),
+        "node_class_scene_counts": dict(class_counts.most_common()),
         "missing_references": missing,
         "invalid_references": invalid_references,
         "scenes": scene_details,
