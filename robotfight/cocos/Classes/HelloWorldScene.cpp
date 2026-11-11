@@ -193,6 +193,14 @@ bool HelloWorld::init() {
     const float w = visible.width;
     const float h = visible.height;
 
+    // All screen-space content is authored relative to the visible viewport.
+    // Offset root-level nodes once so notched / inset displays don't clip UI.
+    auto addVisibleChild = [=](Node* node, int zOrder = 0) {
+        if (!node) return;
+        node->setPosition(node->getPosition() + origin);
+        addVisibleChild(node, zOrder);
+    };
+
     // Restore the last selected campaign arena when the app is reopened.
     const char* campaignStageIds[] = {"scene_11", "scene_0", "scene_1", "scene_3", "scene_13", "scene_19"};
     auto selectedStageIndex = std::make_shared<int>(0);
@@ -228,14 +236,14 @@ bool HelloWorld::init() {
         const float scale = std::max(w / textureSize.width, h / textureSize.height);
         arena->setScale(scale);
         arena->setPosition(Vec2(w * 0.5f, h * 0.5f));
-        addChild(arena, -3);
+        addVisibleChild(arena, -3);
     }
 
     auto bg = DrawNode::create();
     bg->drawSolidRect(Vec2(0, 0), Vec2(w, h), Color4F(0.025f, 0.035f, 0.065f, 0.48f));
     bg->drawSolidRect(Vec2(0, h * 0.70f), Vec2(w, h), Color4F(0.055f, 0.085f, 0.13f, 0.36f));
     bg->drawSolidRect(Vec2(0, h * 0.16f), Vec2(w, h * 0.20f), Color4F(0.12f, 0.16f, 0.20f, 0.42f));
-    addChild(bg, -2);
+    addVisibleChild(bg, -2);
 
     auto title = Label::createWithSystemFont("TOY ATTACK  /  OFFLINE ARENA", "Arial", 26);
     title->setTextColor(Color4B(235, 242, 255, 255));
@@ -255,33 +263,33 @@ bool HelloWorld::init() {
     if (auto hudLeft = Sprite::create("original/battle_player_info.png")) {
         hudLeft->setPosition(w * 0.25f, h * 0.91f);
         hudLeft->setScale(0.58f);
-        addChild(hudLeft, 8);
+        addVisibleChild(hudLeft, 8);
     }
     if (auto hudRight = Sprite::create("original/battle_player_info.png")) {
         hudRight->setPosition(w * 0.75f, h * 0.91f);
         hudRight->setFlippedX(true);
         hudRight->setScale(0.58f);
-        addChild(hudRight, 8);
+        addVisibleChild(hudRight, 8);
     }
     if (auto timerFrame = Sprite::create("original/battle_timer.png")) {
         timerFrame->setPosition(w * 0.5f, h * 0.91f);
         timerFrame->setScale(0.55f);
-        addChild(timerFrame, 9);
+        addVisibleChild(timerFrame, 9);
     }
     if (auto boostBar = Sprite::create("original/battle_boost_bar.png")) {
         boostBar->setPosition(w * 0.5f, h * 0.72f);
         boostBar->setScale(0.62f);
-        addChild(boostBar, 8);
+        addVisibleChild(boostBar, 8);
     }
     auto playerName = Label::createWithSystemFont("PLAYER", "Arial", 19);
     playerName->setPosition(w * 0.25f, h * 0.84f);
     playerName->setTextColor(Color4B(95, 210, 255, 255));
-    addChild(playerName);
+    addVisibleChild(playerName);
 
     auto botName = Label::createWithSystemFont("OPPONENT", "Arial", 19);
     botName->setPosition(w * 0.75f, h * 0.84f);
     botName->setTextColor(Color4B(255, 145, 105, 255));
-    addChild(botName);
+    addVisibleChild(botName);
 
     // Per-part condition indicators mirror the original PLAYER / OPPONENT HUD.
     const char* partIconFiles[] = {
@@ -296,7 +304,7 @@ bool HelloWorld::init() {
             if (icon) {
                 icon->setPosition(centerX + (i - 2) * 27.0f, y);
                 icon->setScale(0.62f);
-                addChild(icon, 15);
+                addVisibleChild(icon, 15);
             }
             indicators[i] = icon;
         }
@@ -309,7 +317,7 @@ bool HelloWorld::init() {
     battleEvent->setTextColor(Color4B(255, 190, 65, 255));
     battleEvent->setPosition(w * 0.5f, h * 0.67f);
     battleEvent->setOpacity(0);
-    addChild(battleEvent, 80);
+    addVisibleChild(battleEvent, 80);
 
     // Resolve each robot's appearance independently. The opponent must use its own
     // recovered part IDs rather than accidentally mirroring the player's loadout.
@@ -393,9 +401,9 @@ bool HelloWorld::init() {
         return robot;
     };
     auto playerRobot = std::make_shared<Node*>(makeRobotView(w * 0.25f, h * 0.55f, false, readPlayerPartIds(), readPlayerBatteryId()));
-    addChild(*playerRobot);
+    addVisibleChild(*playerRobot);
     auto botRobot = std::make_shared<Node*>(makeRobotView(w * 0.75f, h * 0.55f, true, botPartIds, botBatteryId));
-    addChild(*botRobot);
+    addVisibleChild(*botRobot);
 
 
     auto statusRef = std::make_shared<Label*>(nullptr);
@@ -426,7 +434,7 @@ bool HelloWorld::init() {
         *activeModal = panel;
         panel->setScale(0.96f);
         panel->runAction(ScaleTo::create(0.18f, 1.0f));
-        addChild(panel, 300);
+        addVisibleChild(panel, 300);
         if (auto backdrop = Sprite::create("original/editor_BG_tablet_01.png")) {
             const auto size = backdrop->getContentSize();
             backdrop->setScale(std::max(w / size.width, h / size.height));
@@ -530,7 +538,7 @@ bool HelloWorld::init() {
                 current->setString(catalogPartSummary(garageCatalog, slot.category, value));
                 if (*playerRobot) (*playerRobot)->removeFromParent();
                 *playerRobot = makeRobotView(w * 0.25f, h * 0.55f, false, readPlayerPartIds(), readPlayerBatteryId());
-                addChild(*playerRobot, 2);
+                addVisibleChild(*playerRobot, 2);
                 if (*garageRobot) (*garageRobot)->removeFromParent();
                 *garageRobot = makeRobotView(w * 0.84f, h * 0.48f, false, readPlayerPartIds(), readPlayerBatteryId());
                 panel->addChild(*garageRobot, 5);
@@ -606,7 +614,7 @@ bool HelloWorld::init() {
                 if (*playerRobot) (*playerRobot)->removeFromParent();
                 *playerRobot = makeRobotView(w * 0.25f, h * 0.55f, false,
                     readPlayerPartIds(), readPlayerBatteryId());
-                addChild(*playerRobot, 2);
+                addVisibleChild(*playerRobot, 2);
                 if (*garageRobot) (*garageRobot)->removeFromParent();
                 *garageRobot = makeRobotView(w * 0.84f, h * 0.48f, false,
                     readPlayerPartIds(), readPlayerBatteryId());
@@ -651,7 +659,7 @@ bool HelloWorld::init() {
         *activeModal = panel;
         panel->setScale(0.96f);
         panel->runAction(ScaleTo::create(0.18f, 1.0f));
-        addChild(panel, 300);
+        addVisibleChild(panel, 300);
         if (auto backdrop = Sprite::create("original/editor_BG_tablet_02.png")) {
             const auto size = backdrop->getContentSize();
             backdrop->setScale(std::max(w / size.width, h / size.height));
@@ -788,25 +796,25 @@ bool HelloWorld::init() {
     garageItem->setContentSize(Size(w * 0.16f, h * 0.07f));
     stagesItem->setContentSize(Size(w * 0.16f, h * 0.07f));
     homeItem->setContentSize(Size(w * 0.16f, h * 0.07f));
-    addChild(navigation, 10);
+    addVisibleChild(navigation, 10);
 
     auto coins = Label::createWithSystemFont("", "Arial", 17);
     coins->setAnchorPoint(Vec2(1, 0.5f));
     coins->setPosition(w - 18, h - 28);
     coins->setTextColor(Color4B(255, 215, 90, 255));
-    addChild(coins);
+    addVisibleChild(coins);
 
     auto playerHp = Label::createWithSystemFont("", "Arial", 16);
     playerHp->setPosition(w * 0.25f, h * 0.77f);
-    addChild(playerHp);
+    addVisibleChild(playerHp);
     auto botHp = Label::createWithSystemFont("", "Arial", 16);
     botHp->setPosition(w * 0.75f, h * 0.77f);
-    addChild(botHp);
+    addVisibleChild(botHp);
 
     auto status = Label::createWithSystemFont("Choose your move", "Arial", 18);
     status->setPosition(w * 0.5f, h * 0.32f);
     status->setTextColor(Color4B(230, 235, 245, 255));
-    addChild(status);
+    addVisibleChild(status);
     *statusRef = status;
 
     auto refresh = [=]() {
@@ -917,24 +925,24 @@ bool HelloWorld::init() {
     if (auto leftController = Sprite::create("original/battle_controller.png")) {
         leftController->setPosition(w * 0.12f, h * 0.30f);
         leftController->setScale(0.48f);
-        addChild(leftController, 4);
+        addVisibleChild(leftController, 4);
     }
     if (auto rightController = Sprite::create("original/battle_controller.png")) {
         rightController->setPosition(w * 0.88f, h * 0.30f);
         rightController->setFlippedX(true);
         rightController->setScale(0.48f);
-        addChild(rightController, 4);
+        addVisibleChild(rightController, 4);
     }
     if (auto direction = Sprite::create("original/battle_direction.png")) {
         direction->setPosition(w * 0.12f, h * 0.30f);
         direction->setScale(0.38f);
-        addChild(direction, 5);
+        addVisibleChild(direction, 5);
     }
     if (auto direction = Sprite::create("original/battle_direction.png")) {
         direction->setPosition(w * 0.88f, h * 0.30f);
         direction->setFlippedX(true);
         direction->setScale(0.38f);
-        addChild(direction, 5);
+        addVisibleChild(direction, 5);
     }
 
     auto menu = Menu::create(
@@ -944,20 +952,20 @@ bool HelloWorld::init() {
         makeButton("GUARD", Command::Guard, w * 0.80f),
         nullptr);
     menu->setPosition(Vec2::ZERO);
-    addChild(menu, 5);
+    addVisibleChild(menu, 5);
 
     auto note = Label::createWithSystemFont(
         "Native combat loop test  |  Local profile  |  ARM64", "Arial", 12);
     note->setTextColor(Color4B(115, 135, 160, 255));
     note->setPosition(w * 0.5f, 16);
-    addChild(note);
+    addVisibleChild(note);
 
     // Original-art home hub reconstructed from the recovered RFMainLayer resources.
     // The proprietary RCCB node graph is not decoded yet, so this is a native
     // layout using the exact original backgrounds, robot stand, tier and menu art.
     auto home = Node::create();
     *homeRef = home;
-    addChild(home, 200);
+    addVisibleChild(home, 200);
     auto addHomeSprite = [=](const std::string& file, const Vec2& position,
                               float scale, int z = 0) -> Sprite* {
         auto sprite = Sprite::create("original/" + file + ".png");
@@ -1046,7 +1054,7 @@ bool HelloWorld::init() {
         *activeModal = panel;
         panel->setScale(0.96f);
         panel->runAction(ScaleTo::create(0.18f, 1.0f));
-        addChild(panel, 250);
+        addVisibleChild(panel, 250);
         auto dim = DrawNode::create();
         dim->drawSolidRect(Vec2(0, 0), Vec2(w, h), Color4F(0.01f, 0.02f, 0.04f, 0.94f));
         panel->addChild(dim);
@@ -1179,7 +1187,7 @@ bool HelloWorld::init() {
         *activeModal = panel;
         panel->setScale(0.96f);
         panel->runAction(ScaleTo::create(0.18f, 1.0f));
-        addChild(panel, 260);
+        addVisibleChild(panel, 260);
         auto shade = DrawNode::create();
         shade->drawSolidRect(Vec2(0, 0), Vec2(w, h), Color4F(0.01f, 0.02f, 0.04f, 0.96f));
         panel->addChild(shade);
