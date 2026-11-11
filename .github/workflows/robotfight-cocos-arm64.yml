@@ -7,6 +7,7 @@ on:
       - "robotfight/cocos/**"
       - "tools/import_robotfight_assets.py"
       - "tools/audit_robot_part_geometry.py"
+      - "tools/audit_robotfight_stage_gallery.py"
       - ".github/workflows/robotfight-cocos-arm64.yml"
 
 concurrency:
