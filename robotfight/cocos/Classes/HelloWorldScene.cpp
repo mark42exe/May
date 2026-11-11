@@ -1247,10 +1247,14 @@ bool HelloWorld::init() {
 
         const auto& items = focusedItems();
         if (items.empty()) return;
-        const bool previous = keyCode == EventKeyboard::KeyCode::KEY_LEFT ||
-            keyCode == EventKeyboard::KeyCode::KEY_UP;
-        const bool next = keyCode == EventKeyboard::KeyCode::KEY_RIGHT ||
-            keyCode == EventKeyboard::KeyCode::KEY_DOWN;
+        const bool previous = keyCode == EventKeyboard::KeyCode::KEY_DPAD_LEFT ||
+            keyCode == EventKeyboard::KeyCode::KEY_DPAD_UP ||
+            keyCode == EventKeyboard::KeyCode::KEY_LEFT_ARROW ||
+            keyCode == EventKeyboard::KeyCode::KEY_UP_ARROW;
+        const bool next = keyCode == EventKeyboard::KeyCode::KEY_DPAD_RIGHT ||
+            keyCode == EventKeyboard::KeyCode::KEY_DPAD_DOWN ||
+            keyCode == EventKeyboard::KeyCode::KEY_RIGHT_ARROW ||
+            keyCode == EventKeyboard::KeyCode::KEY_DOWN_ARROW;
         if (previous || next) {
             *focusIndex = (*focusIndex + (previous ? static_cast<int>(items.size()) - 1 : 1)) %
                 static_cast<int>(items.size());
