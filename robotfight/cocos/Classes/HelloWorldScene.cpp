@@ -426,6 +426,7 @@ bool HelloWorld::init() {
             {"FRONT ARM", "front", "FrontArm", "arm_f_", "rf.part.front"},
             {"BATTERY", "battery", "Battery", "battery_1_", "rf.part.battery"}
         };
+        std::array<Label*, 6> currentLabels = {};
         for (int i = 0; i < 6; ++i) {
             const float y = h * 0.75f - i * h * 0.095f;
             if (auto rowPanel = Sprite::create("original/editor_stats_panel.png")) {
@@ -453,6 +454,7 @@ bool HelloWorld::init() {
             current->setPosition(w * 0.56f, y);
             current->setTextColor(Color4B(255, 205, 95, 255));
             panel->addChild(current);
+            currentLabels[static_cast<std::size_t>(i)] = current;
 
             std::vector<std::string> choices;
             const auto categoryIt = garageCatalog.find(slot.category);
@@ -504,9 +506,64 @@ bool HelloWorld::init() {
             arrows->setPosition(Vec2::ZERO);
             panel->addChild(arrows);
         }
+        const char* partSaveKeys[] = {
+            "rf.part.base", "rf.part.core", "rf.part.head",
+            "rf.part.back", "rf.part.front", "rf.part.battery"
+        };
+        const char* partCategories[] = {
+            "Base", "Core", "Head", "BackArm", "FrontArm", "Battery"
+        };
+        const char* presetKeys[] = {
+            "rf.loadout.primary.base", "rf.loadout.primary.core",
+            "rf.loadout.primary.head", "rf.loadout.primary.back",
+            "rf.loadout.primary.front", "rf.loadout.primary.battery"
+        };
+        auto savePresetLabel = Label::createWithSystemFont("SAVE LOADOUT", "Arial", 16);
+        auto savePreset = MenuItemLabel::create(savePresetLabel, [=](Ref*) {
+            auto* defaults = UserDefault::getInstance();
+            for (int i = 0; i < 6; ++i)
+                defaults->setStringForKey(presetKeys[i],
+                    defaults->getStringForKey(partSaveKeys[i], ""));
+            defaults->flush();
+            savePresetLabel->setString("LOADOUT SAVED");
+        });
+        savePreset->setPosition(w * 0.31f, h * 0.14f);
+        auto loadPresetLabel = Label::createWithSystemFont("LOAD LOADOUT", "Arial", 16);
+        auto loadPreset = MenuItemLabel::create(loadPresetLabel, [=](Ref*) {
+            auto* defaults = UserDefault::getInstance();
+            bool loadedAny = false;
+            for (int i = 0; i < 6; ++i) {
+                const std::string value = defaults->getStringForKey(presetKeys[i], "");
+                if (value.empty()) continue;
+                defaults->setStringForKey(partSaveKeys[i], value);
+                if (currentLabels[static_cast<std::size_t>(i)])
+                    currentLabels[static_cast<std::size_t>(i)]->setString(
+                        catalogPartSummary(garageCatalog, partCategories[i], value));
+                loadedAny = true;
+            }
+            if (loadedAny) {
+                defaults->flush();
+                if (*playerRobot) (*playerRobot)->removeFromParent();
+                *playerRobot = makeRobotView(w * 0.25f, h * 0.55f, false,
+                    readPlayerPartIds(), readPlayerBatteryId());
+                addChild(*playerRobot, 2);
+                if (*garageRobot) (*garageRobot)->removeFromParent();
+                *garageRobot = makeRobotView(w * 0.84f, h * 0.48f, false,
+                    readPlayerPartIds(), readPlayerBatteryId());
+                panel->addChild(*garageRobot, 5);
+                loadPresetLabel->setString("LOADOUT LOADED");
+            } else {
+                loadPresetLabel->setString("NO SAVED LOADOUT");
+            }
+        });
+        loadPreset->setPosition(w * 0.69f, h * 0.14f);
+        auto presetMenu = Menu::create(savePreset, loadPreset, nullptr);
+        presetMenu->setPosition(Vec2::ZERO);
+        panel->addChild(presetMenu);
+
         auto closeLabel = Label::createWithSystemFont("BACK", "Arial", 20);
         auto close = MenuItemLabel::create(closeLabel, [=](Ref*) { panel->removeFromParent(); });
-        close->setPosition(w * 0.5f, h * 0.10f);
+        close->setPosition(w * 0.5f, h * 0.075f);
         auto closeMenu = Menu::create(close, nullptr);
         closeMenu->setPosition(Vec2::ZERO);
         panel->addChild(closeMenu);
