@@ -4,6 +4,11 @@ on:
   workflow_dispatch:
   release:
     types: [published]
+  push:
+    paths:
+      - "robotfight/android/**"
+      - "tools/extract_robotfight_dca.py"
+      - ".github/workflows/robotfight-arm64.yml"
 
 permissions:
   contents: read
