@@ -476,6 +476,26 @@ jobs:
           test -x "$ZIPALIGN" || { echo "Android build-tools zipalign executable not found"; exit 1; }
           "$APKSIGNER" verify --verbose "$APK"
           "$ZIPALIGN" -c -v 4 "$APK"
+          # Prove the packaged launcher is the Cocos Android activity, not the
+          # separate HTML preview source kept in robotfight/android/.
+          grep -q "launchable-activity: name='.*AppActivity'" "$RUNNER_TEMP/apk-badging.txt"
+          python3 - "$APK" <<'PY'
+          from zipfile import ZipFile
+          import sys
+          with ZipFile(sys.argv[1]) as z:
+              names = set(z.namelist())
+              dex_files = sorted(n for n in names if n.endswith(".dex"))
+              if not dex_files:
+                  raise SystemExit("APK has no Dalvik bytecode")
+              dex = b"".join(z.read(n) for n in dex_files)
+              if b"org/cocos2dx/lib/Cocos2dxActivity" not in dex:
+                  raise SystemExit("Cocos2dxActivity missing from packaged DEX")
+              if any(n.endswith("/index.html") for n in names):
+                  raise SystemExit("HTML preview unexpectedly packaged as the launcher")
+              if "lib/arm64-v8a/libMyGame.so" not in names:
+                  raise SystemExit("Cocos ARM64 native library missing")
+              print("Runtime wiring verified: Cocos AppActivity + Cocos2dxActivity + ARM64 native library; HTML preview excluded")
+          PY
           python3 - "$APK" <<'PY'
           from zipfile import ZipFile
           import struct, sys
