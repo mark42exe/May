@@ -707,19 +707,19 @@ bool HelloWorld::init() {
             if (result.outcome == BattleOutcome::PlayerWin) {
                 LocalProfile::recordStageVictory(*selectedStageIndex);
                 LocalProfile::recordResult(result.outcome);
-                status->setString("VICTORY  +2,000 COINS");
+                status->setString("VICTORY  +2,000 COINS  +100 XP");
                 playOriginalEffect(this, "explosion_ef1_default_Anim.plist",
                                    (*botRobot)->getPosition(), 1.8f);
                 playOriginalSoundEvent("robotDestroy");
             } else if (result.outcome == BattleOutcome::BotWin) {
                 LocalProfile::recordResult(result.outcome);
-                status->setString("DEFEAT  -  NO COINS AWARDED");
+                status->setString("DEFEAT  +40 XP  -  NO COINS AWARDED");
                 playOriginalEffect(this, "explosion_ef2_default_Anim.plist",
                                    (*playerRobot)->getPosition(), 1.8f);
                 playOriginalSoundEvent("partsBroken");
             } else if (result.outcome == BattleOutcome::Draw) {
                 LocalProfile::recordResult(result.outcome);
-                status->setString("DRAW  -  NO COINS AWARDED");
+                status->setString("DRAW  +60 XP  -  NO COINS AWARDED");
             }
             refresh();
         });
@@ -809,6 +809,14 @@ bool HelloWorld::init() {
     homeRecord->setPosition(w * 0.095f, h * 0.815f);
     homeRecord->setTextColor(Color4B(135, 220, 245, 255));
     home->addChild(homeRecord, 4);
+    auto homeLevel = Label::createWithSystemFont(
+        StringUtils::format("PILOT LEVEL %d   XP %d / %d",
+            LocalProfile::pilotLevel(), LocalProfile::experienceIntoLevel(), 250),
+        "Arial-BOLD", 14);
+    homeLevel->setAnchorPoint(Vec2(0, 0.5f));
+    homeLevel->setPosition(w * 0.095f, h * 0.775f);
+    homeLevel->setTextColor(Color4B(255, 215, 115, 255));
+    home->addChild(homeLevel, 4);
     auto homeTier = Label::createWithSystemFont(
         StringUtils::format("CAMPAIGN  %d / 6", robotfight::LocalProfile::unlockedStages()),
         "Arial-BOLD", 17);
@@ -883,9 +891,11 @@ bool HelloWorld::init() {
         for (int stage = 0; stage < 6; ++stage)
             if (LocalProfile::isStageComplete(stage)) ++clearedStages;
         infoPanel("PILOT PROFILE", StringUtils::format(
-            "COINS  %d\\nWINS  %d\\nLOSSES  %d\\n\\nCAMPAIGN  %d / 6 CLEARED\\nSTAGES UNLOCKED  %d / 6",
-            LocalProfile::coins(), LocalProfile::wins(), LocalProfile::losses(),
-            clearedStages, LocalProfile::unlockedStages()));
+            "PILOT LEVEL  %d\\nEXPERIENCE  %d / %d XP\\nNEXT LEVEL  %d XP\\n\\nCOINS  %d\\nWINS  %d\\nLOSSES  %d\\n\\nCAMPAIGN  %d / 6 CLEARED\\nSTAGES UNLOCKED  %d / 6",
+            LocalProfile::pilotLevel(), LocalProfile::experienceIntoLevel(), 250,
+            LocalProfile::experienceToNextLevel(), LocalProfile::coins(),
+            LocalProfile::wins(), LocalProfile::losses(), clearedStages,
+            LocalProfile::unlockedStages()));
     });
     profileItem->setPosition(w * 0.60f, h * 0.13f);
     auto questLabel = Label::createWithSystemFont("QUESTS", "Arial", 17);
