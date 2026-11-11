@@ -77,6 +77,7 @@ public:
     static int experienceIntoLevel();
     static int experienceToNextLevel();
     static int unlockedStages();
+    static void validateSavedData();
     static bool isStageUnlocked(int stageIndex);
     static bool isStageComplete(int stageIndex);
     static void recordStageVictory(int stageIndex);
