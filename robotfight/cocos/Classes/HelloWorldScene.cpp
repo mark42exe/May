@@ -363,7 +363,18 @@ bool HelloWorld::init() {
 
                 // Reconstructed cosmetic idle rig using the recovered component sprites.
                 // These motions do not alter the underlying battle state or controls.
-                if (index == 2) {
+                if (index == 1) {
+                    // A restrained core-energy pulse adds life to the recovered robot art.
+                    // Keep the motion cosmetic: it does not change stats or battle state.
+                    auto coreScale = Sequence::create(
+                        ScaleTo::create(1.15f, 0.735f),
+                        ScaleTo::create(1.15f, 0.72f), nullptr);
+                    auto coreGlow = Sequence::create(
+                        FadeTo::create(1.15f, 220),
+                        FadeTo::create(1.15f, 255), nullptr);
+                    sprite->runAction(RepeatForever::create(coreScale));
+                    sprite->runAction(RepeatForever::create(coreGlow));
+                } else if (index == 2) {
                     auto headSway = Sequence::create(
                         RotateTo::create(0.9f, enemy ? -1.4f : 1.4f),
                         RotateTo::create(0.9f, 0.0f), nullptr);
