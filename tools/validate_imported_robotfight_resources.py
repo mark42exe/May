@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import plistlib
 from pathlib import Path
@@ -48,6 +49,29 @@ def main() -> None:
         if not path.is_file() or path.stat().st_size == 0:
             problems.append(f"Required original asset missing or empty: {name}")
 
+    # Verify every imported original asset against the import-time manifest.
+    manifest_files = manifest.get("files", [])
+    if manifest_files and isinstance(manifest_files[0], str):
+        problems.append("Legacy asset manifest has no per-file hashes; re-import original assets")
+    elif not isinstance(manifest_files, list) or len(manifest_files) != manifest.get("imported_files"):
+        problems.append("Asset manifest file list/count is inconsistent")
+    else:
+        seen = set()
+        for record in manifest_files:
+            rel = record.get("path", "")
+            candidate = Path(rel)
+            if not rel or candidate.is_absolute() or ".." in candidate.parts or rel in seen:
+                problems.append(f"Unsafe or duplicate manifest path: {rel!r}")
+                continue
+            seen.add(rel)
+            path = root / candidate
+            if not path.is_file():
+                problems.append(f"Manifest asset missing: {rel}")
+                continue
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            if path.stat().st_size != record.get("bytes") or digest != record.get("sha256"):
+                problems.append(f"Asset integrity mismatch: {rel}")
+
     image_count = 0
     for path in root.rglob("*"):
         if not path.is_file() or path.suffix.lower() not in (".png", ".webp"):
@@ -74,8 +98,27 @@ def main() -> None:
         except Exception as exc:
             problems.append(f"{name} cannot be parsed: {exc}")
 
+    audio_checked = 0
+    for path in root.rglob("*"):
+        if not path.is_file() or path.suffix.lower() not in (".ogg", ".wav", ".mp3", ".m4a"):
+            continue
+        data = path.read_bytes()[:16]
+        suffix = path.suffix.lower()
+        valid = (
+            (suffix == ".ogg" and data.startswith(b"OggS")) or
+            (suffix == ".wav" and len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WAVE") or
+            (suffix == ".mp3" and (data.startswith(b"ID3") or (len(data) >= 2 and data[0] == 0xFF and (data[1] & 0xE0) == 0xE0))) or
+            (suffix == ".m4a" and len(data) >= 8 and data[4:8] == b"ftyp")
+        )
+        if not valid:
+            problems.append(f"Audio file signature mismatch: {path.relative_to(root)}")
+        else:
+            audio_checked += 1
+
     report = {
         "file_count": len(files),
+        "manifest_entries_verified": len(manifest_files) if isinstance(manifest_files, list) else 0,
+        "audio_files_checked": audio_checked,
         "manifest_imported_files": manifest.get("imported_files"),
         "image_count_checked": image_count,
         "critical_plists_parsed": plist_count,
