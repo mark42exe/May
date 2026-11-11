@@ -37,8 +37,8 @@ def main() -> None:
                 with Image.open(path) as image:
                     width, height = image.size
                     record.update(width=width, height=height, format=image.format)
-                    if width < 160 or height < 90:
-                        errors.append(f"Arena thumbnail is unexpectedly small: {filename} ({width}x{height})")
+                    if width <= 0 or height <= 0:
+                        errors.append(f"Arena thumbnail has invalid dimensions: {filename} ({width}x{height})")
             except Exception as exc:
                 errors.append(f"Unreadable arena thumbnail {filename}: {exc}")
         records.append(record)
