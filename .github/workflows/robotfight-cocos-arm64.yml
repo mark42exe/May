@@ -25,8 +25,7 @@ permissions:
 
 jobs:
   cocos-arm64:
-    # Ubuntu 22.04 retains the ncurses5/tinfo5 ABI required by NDK r16b.
-    # Newer runner images removed these legacy runtime libraries.
+    # Use a modern NDK whose host compiler runs on the current Ubuntu image.
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -46,16 +45,9 @@ jobs:
         with:
           packages: platform-tools
 
-      - name: Install legacy ncurses runtime required by NDK r16b
+      - name: Install modern NDK for Cocos 3.15.1 ARM64 build
         run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libncurses5 libtinfo5
-          ldconfig -p | grep -E 'libncurses\.so\.5|libtinfo\.so\.5'
-
-      - name: Install legacy NDK required by original Cocos 3.15.1
-        run: |
-          sdkmanager "platform-tools" "ndk;16.1.4479499"
+          sdkmanager "platform-tools" "ndk;25.2.9519653"
 
       - name: Download original Cocos2d-x 3.15.1 engine and template
         run: |
@@ -338,7 +330,7 @@ jobs:
       - name: Compile original Cocos 3.15.1 native library for ARM64 only (no APK)
         run: |
           set -euo pipefail
-          NDK="$ANDROID_HOME/ndk/16.1.4479499"
+          NDK="$ANDROID_HOME/ndk/25.2.9519653"
           test -x "$NDK/ndk-build"
           "$NDK/ndk-build" -C "$PROJECT_DIR/proj.android-studio/app" \
             NDK_PROJECT_PATH=. \
