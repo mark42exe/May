@@ -982,8 +982,13 @@ bool HelloWorld::init() {
         homeArt->setPosition(w * 0.5f, h * 0.5f);
         home->addChild(homeArt, -5);
     }
-    if (auto glow = addHomeSprite("mainmenu_robot_ef_1", Vec2(w * 0.29f, h * 0.43f), 1.05f, -2))
+    if (auto glow = addHomeSprite("mainmenu_robot_ef_1", Vec2(w * 0.29f, h * 0.43f), 1.05f, -2)) {
         glow->setOpacity(150);
+        auto glowPulse = Sequence::create(
+            FadeTo::create(1.15f, 95),
+            FadeTo::create(1.15f, 175), nullptr);
+        glow->runAction(RepeatForever::create(glowPulse));
+    }
     addHomeSprite("mainmeun_robotstand", Vec2(w * 0.29f, h * 0.20f), 0.72f, -1);
     auto homeRobot = makeRobotView(w * 0.29f, h * 0.43f, false,
                                    readPlayerPartIds(), readPlayerBatteryId());
