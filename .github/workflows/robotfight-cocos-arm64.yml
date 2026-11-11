@@ -46,6 +46,13 @@ jobs:
         with:
           packages: platform-tools
 
+      - name: Install legacy ncurses runtime required by NDK r16b
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libncurses5 libtinfo5
+          ldconfig -p | grep -E 'libncurses\.so\.5|libtinfo\.so\.5'
+
       - name: Install legacy NDK required by original Cocos 3.15.1
         run: |
           sdkmanager "platform-tools" "ndk;16.1.4479499"
