@@ -11,6 +11,7 @@ on:
       - "tools/validate_imported_robotfight_resources.py"
       - "tools/stage_recovered_robotfight_scenes.py"
       - "tools/audit_robotfight_scene_references.py"
+      - "tools/audit_robotfight_audio.py"
       - ".github/workflows/robotfight-cocos-arm64.yml"
 
 concurrency:
@@ -271,6 +272,17 @@ jobs:
       - name: Audit recovered arena gallery assets
         run: |
           python3 tools/audit_robotfight_stage_gallery.py "$PROJECT_DIR/Resources/original" --out "$RUNNER_TEMP/stage_gallery_audit.json"
+
+      - name: Validate all original sound-event references
+        run: |
+          python3 tools/audit_robotfight_audio.py "$PROJECT_DIR/Resources/original" --out "$RUNNER_TEMP/audio_event_audit.json"
+
+      - name: Upload original audio-event audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-Audio-Event-Audit
+          path: ${{ runner.temp }}/audio_event_audit.json
+          if-no-files-found: error
 
       - name: Inventory recovered RCCB scene dependencies
         run: |
