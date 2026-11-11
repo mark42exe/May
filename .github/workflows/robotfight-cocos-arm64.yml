@@ -13,6 +13,7 @@ on:
       - "tools/audit_robotfight_scene_references.py"
       - "tools/audit_robotfight_audio.py"
       - "tools/audit_robotfight_animations.py"
+      - "tools/inspect_rccb.py"
       - ".github/workflows/robotfight-cocos-arm64.yml"
 
 concurrency:
@@ -305,6 +306,17 @@ jobs:
         with:
           name: RobotFight-RCCB-Scene-Dependency-Audit
           path: ${{ runner.temp }}/scene_reference_audit.json
+          if-no-files-found: error
+
+      - name: Inspect original RCCB binary strings and candidate record offsets
+        run: |
+          python3 tools/inspect_rccb.py "$PROJECT_DIR/Resources/original" --output "$RUNNER_TEMP/rccb_binary_inspection.json"
+
+      - name: Upload original RCCB binary inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-RCCB-Binary-Inspection
+          path: ${{ runner.temp }}/rccb_binary_inspection.json
           if-no-files-found: error
 
       - name: Upload arena gallery asset audit
