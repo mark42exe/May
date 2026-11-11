@@ -157,7 +157,7 @@ void LocalProfile::recordStageVictory(int stageIndex) {
     if (stageIndex < 0 || stageIndex >= 6) return;
     auto* save = cocos2d::UserDefault::getInstance();
     char key[64];
-    std::snprintf(key, sizeof(key), "rf.campaign.stage.%d.complete", stageIndex);
+    ::snprintf(key, sizeof(key), "rf.campaign.stage.%d.complete", stageIndex);
     save->setBoolForKey(key, true);
     const int nextUnlocked = std::min(6, std::max(unlockedStages(), stageIndex + 2));
     save->setIntegerForKey("rf.campaign.unlocked", nextUnlocked);
