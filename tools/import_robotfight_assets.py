@@ -20,9 +20,17 @@ def safe_target(root: pathlib.Path, name: str) -> pathlib.Path:
 def extract_dca(data: bytes, out: pathlib.Path) -> int:
     if data[:4] != b"DCA\0":
         raise ValueError("Input is not a DCA archive")
+    if len(data) < 28:
+        raise ValueError("Truncated DCA header")
     version, flags, records_offset, records_bytes, strings_offset, strings_bytes = struct.unpack_from("<6I", data, 4)
-    if records_bytes % 8 or strings_offset + strings_bytes > len(data):
+    records_end = records_offset + records_bytes
+    strings_end = strings_offset + strings_bytes
+    if (records_offset < 28 or strings_offset < 28 or records_bytes % 8 or
+            records_end < records_offset or records_end > len(data) or
+            strings_end < strings_offset or strings_end > len(data)):
         raise ValueError("Invalid DCA directory bounds")
+    if records_offset < strings_end and strings_offset < records_end:
+        raise ValueError("DCA record and string tables overlap")
     table = data[strings_offset:strings_offset + strings_bytes]
     names, pos = {}, 0
     for raw in table.split(b"\0"):
@@ -31,13 +39,16 @@ def extract_dca(data: bytes, out: pathlib.Path) -> int:
     manifest = []
     for i in range(records_bytes // 8):
         name_offset, file_offset = struct.unpack_from("<II", data, records_offset + i * 8)
-        if file_offset + 12 > len(data):
+        if file_offset < 28 or file_offset + 12 > len(data):
             raise ValueError(f"Invalid DCA file offset at record {i}")
         name = names.get(name_offset)
         if name is None:
             raise ValueError(f"Unknown DCA name offset at record {i}")
         crc, codec, size = struct.unpack_from("<III", data, file_offset)
-        payload = data[file_offset + 12:file_offset + 12 + size]
+        payload_end = file_offset + 12 + size
+        if payload_end < file_offset + 12 or payload_end > len(data):
+            raise ValueError(f"DCA payload exceeds archive bounds: {name}")
+        payload = data[file_offset + 12:payload_end]
         if len(payload) != size or (zlib.crc32(payload) & 0xffffffff) != crc:
             raise ValueError(f"DCA CRC/length mismatch: {name}")
         safe_target(out, name).write_bytes(payload)
@@ -108,6 +119,17 @@ def main():
             suffix = item.suffix.lower()
             dest_rel = rel.with_suffix(".png") if suffix == ".webp" else rel
             dest = args.output / dest_rel
+            # Some original archives contain both foo.png and foo.webp. Keep the
+            # PNG at the canonical Cocos path and preserve the converted WebP
+            # separately instead of silently overwriting one original asset.
+            if dest.exists():
+                if suffix == ".webp":
+                    dest_rel = dest_rel.with_name(dest_rel.stem + "__from_webp.png")
+                    dest = args.output / dest_rel
+                    if dest.exists():
+                        raise ValueError(f"Repeated converted-image destination: {dest_rel}")
+                else:
+                    raise ValueError(f"Duplicate imported asset destination: {dest_rel}")
             dest.parent.mkdir(parents=True, exist_ok=True)
             if suffix == ".webp":
                 with Image.open(item) as im:
