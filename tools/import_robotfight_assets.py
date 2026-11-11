@@ -5,7 +5,7 @@ WebP files are converted to PNG for predictable Cocos2d-x image decoding.
 Proprietary RCCB scenes are preserved as data; this tool does not claim to decode them.
 """
 from __future__ import annotations
-import argparse, json, os, pathlib, shutil, struct, tempfile, zipfile, zlib
+import argparse, hashlib, json, os, pathlib, shutil, struct, tempfile, zipfile, zlib
 from PIL import Image
 
 def safe_target(root: pathlib.Path, name: str) -> pathlib.Path:
@@ -119,7 +119,11 @@ def main():
                     counts["images_png"] += 1
                 else:
                     counts["data_files"] += 1
-            imported.append(dest_rel.as_posix())
+            imported.append({
+                "path": dest_rel.as_posix(),
+                "bytes": dest.stat().st_size,
+                "sha256": hashlib.sha256(dest.read_bytes()).hexdigest(),
+            })
         manifest = {"source": args.input.name, "imported_files": len(imported),
                     "counts": counts, "files": imported}
         (args.output / "original_asset_manifest.json").write_text(
