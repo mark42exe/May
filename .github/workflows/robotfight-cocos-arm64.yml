@@ -104,7 +104,7 @@ jobs:
           path = Path(sys.argv[1])
           source = path.read_text()
           import re
-          pattern = r"0x7FFFFFFF\\s*/\\s*\\(float\\)\\s*18"
+          pattern = r"0x7FFFFFFF\s*/\s*\(float\)\s*18"
           replacement = "(float)0x7FFFFFFF / 18.0f"
           source, count = re.subn(pattern, replacement, source, count=1)
           if count:
