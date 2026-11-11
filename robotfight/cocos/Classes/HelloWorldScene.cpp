@@ -506,18 +506,18 @@ bool HelloWorld::init() {
             arrows->setPosition(Vec2::ZERO);
             panel->addChild(arrows);
         }
-        const char* partSaveKeys[] = {
+        const std::array<const char*, 6> partSaveKeys = {{
             "rf.part.base", "rf.part.core", "rf.part.head",
             "rf.part.back", "rf.part.front", "rf.part.battery"
-        };
-        const char* partCategories[] = {
+        }};
+        const std::array<const char*, 6> partCategories = {{
             "Base", "Core", "Head", "BackArm", "FrontArm", "Battery"
-        };
-        const char* presetKeys[] = {
+        }};
+        const std::array<const char*, 6> presetKeys = {{
             "rf.loadout.primary.base", "rf.loadout.primary.core",
             "rf.loadout.primary.head", "rf.loadout.primary.back",
             "rf.loadout.primary.front", "rf.loadout.primary.battery"
-        };
+        }};
         auto savePresetLabel = Label::createWithSystemFont("SAVE LOADOUT", "Arial", 16);
         auto savePreset = MenuItemLabel::create(savePresetLabel, [=](Ref*) {
             auto* defaults = UserDefault::getInstance();
