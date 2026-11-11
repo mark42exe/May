@@ -322,15 +322,40 @@ bool HelloWorld::init() {
             {(std::string("original/battery_1_") + batteryTextureId + ".png").c_str(), Vec2(34, -62), 0.34f},
         };
         int loaded = 0;
-        for (const auto& part : parts) {
+        for (std::size_t index = 0; index < sizeof(parts) / sizeof(parts[0]); ++index) {
+            const auto& part = parts[index];
             if (auto sprite = Sprite::create(part.file)) {
                 sprite->setPosition(part.position);
                 sprite->setScale(part.scale);
                 if (enemy) sprite->setFlippedX(true);
                 robot->addChild(sprite);
+
+                // Reconstructed cosmetic idle rig using the recovered component sprites.
+                // These motions do not alter the underlying battle state or controls.
+                if (index == 2) {
+                    auto headSway = Sequence::create(
+                        RotateTo::create(0.9f, enemy ? -1.4f : 1.4f),
+                        RotateTo::create(0.9f, 0.0f), nullptr);
+                    sprite->runAction(RepeatForever::create(headSway));
+                } else if (index == 3 || index == 4) {
+                    const float direction = (index == 3) ? -1.0f : 1.0f;
+                    auto armSway = Sequence::create(
+                        RotateTo::create(1.1f, direction * 2.2f),
+                        RotateTo::create(1.1f, 0.0f), nullptr);
+                    sprite->runAction(RepeatForever::create(armSway));
+                } else if (index == 5) {
+                    auto batteryPulse = Sequence::create(
+                        FadeTo::create(1.0f, 175),
+                        FadeTo::create(1.0f, 255), nullptr);
+                    sprite->runAction(RepeatForever::create(batteryPulse));
+                }
                 ++loaded;
             }
         }
+        auto idleBob = Sequence::create(
+            MoveBy::create(1.25f, Vec2(0.0f, 3.5f)),
+            MoveBy::create(1.25f, Vec2(0.0f, -3.5f)), nullptr);
+        robot->runAction(RepeatForever::create(idleBob));
         if (loaded < 5) {
             robot->removeAllChildren();
             auto fallback = DrawNode::create();
