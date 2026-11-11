@@ -3,6 +3,7 @@
 #include "audio/include/AudioEngine.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <functional>
@@ -1264,6 +1265,48 @@ bool HelloWorld::init() {
     auto focusedItems = [=]() -> const std::vector<MenuItem*>& {
         return home->isVisible() ? homeFocusItems : battleFocusItems;
     };
+    // Move focus to the nearest control in the requested screen direction.
+    // This respects the actual menu layout instead of treating every menu as a list.
+    auto directionalFocusIndex = [](const std::vector<MenuItem*>& items, int current,
+                                     const Vec2& direction) -> int {
+        if (items.size() < 2) return current;
+        current = std::max(0, std::min(current, static_cast<int>(items.size()) - 1));
+        if (!items[static_cast<std::size_t>(current)]) return current;
+        const Vec2 originPoint = items[static_cast<std::size_t>(current)]->convertToWorldSpaceAR(Vec2::ZERO);
+        int bestIndex = current;
+        float bestScore = 1.0e30f;
+        for (std::size_t i = 0; i < items.size(); ++i) {
+            if (static_cast<int>(i) == current || !items[i]) continue;
+            const Vec2 point = items[i]->convertToWorldSpaceAR(Vec2::ZERO);
+            const Vec2 delta = point - originPoint;
+            const float primary = delta.x * direction.x + delta.y * direction.y;
+            if (primary <= 1.0f) continue;
+            const float cross = std::fabs(delta.x * direction.y - delta.y * direction.x);
+            const float score = primary + cross * 1.65f;
+            if (score < bestScore) {
+                bestScore = score;
+                bestIndex = static_cast<int>(i);
+            }
+        }
+        if (bestIndex != current) return bestIndex;
+
+        // Wrap to the nearest control on the opposite side when no forward item exists.
+        bestScore = 1.0e30f;
+        for (std::size_t i = 0; i < items.size(); ++i) {
+            if (static_cast<int>(i) == current || !items[i]) continue;
+            const Vec2 point = items[i]->convertToWorldSpaceAR(Vec2::ZERO);
+            const Vec2 delta = point - originPoint;
+            const float primary = delta.x * direction.x + delta.y * direction.y;
+            const float cross = std::fabs(delta.x * direction.y - delta.y * direction.x);
+            const float score = -primary + cross * 1.65f;
+            if (score < bestScore) {
+                bestScore = score;
+                bestIndex = static_cast<int>(i);
+            }
+        }
+        return bestIndex;
+    };
+
     auto showFocus = [=]() {
         const auto& items = focusedItems();
         if (items.empty()) return;
@@ -1300,18 +1343,17 @@ bool HelloWorld::init() {
 
         if (*activeModal) {
             if (modalFocusItems->empty()) return;
-            const bool modalPrevious = keyCode == EventKeyboard::KeyCode::KEY_DPAD_LEFT ||
-                keyCode == EventKeyboard::KeyCode::KEY_DPAD_UP ||
-                keyCode == EventKeyboard::KeyCode::KEY_LEFT_ARROW ||
-                keyCode == EventKeyboard::KeyCode::KEY_UP_ARROW;
-            const bool modalNext = keyCode == EventKeyboard::KeyCode::KEY_DPAD_RIGHT ||
-                keyCode == EventKeyboard::KeyCode::KEY_DPAD_DOWN ||
-                keyCode == EventKeyboard::KeyCode::KEY_RIGHT_ARROW ||
-                keyCode == EventKeyboard::KeyCode::KEY_DOWN_ARROW;
-            if (modalPrevious || modalNext) {
-                const int count = static_cast<int>(modalFocusItems->size());
-                *modalFocusIndex = (*modalFocusIndex +
-                    (modalPrevious ? count - 1 : 1)) % count;
+            Vec2 modalDirection = Vec2::ZERO;
+            if (keyCode == EventKeyboard::KeyCode::KEY_DPAD_LEFT ||
+                keyCode == EventKeyboard::KeyCode::KEY_LEFT_ARROW) modalDirection = Vec2(-1, 0);
+            else if (keyCode == EventKeyboard::KeyCode::KEY_DPAD_RIGHT ||
+                     keyCode == EventKeyboard::KeyCode::KEY_RIGHT_ARROW) modalDirection = Vec2(1, 0);
+            else if (keyCode == EventKeyboard::KeyCode::KEY_DPAD_UP ||
+                     keyCode == EventKeyboard::KeyCode::KEY_UP_ARROW) modalDirection = Vec2(0, 1);
+            else if (keyCode == EventKeyboard::KeyCode::KEY_DPAD_DOWN ||
+                     keyCode == EventKeyboard::KeyCode::KEY_DOWN_ARROW) modalDirection = Vec2(0, -1);
+            if (modalDirection != Vec2::ZERO) {
+                *modalFocusIndex = directionalFocusIndex(*modalFocusItems, *modalFocusIndex, modalDirection);
             } else if (keyCode == EventKeyboard::KeyCode::KEY_ENTER ||
                        keyCode == EventKeyboard::KeyCode::KEY_KP_ENTER ||
                        keyCode == EventKeyboard::KeyCode::KEY_DPAD_CENTER ||
@@ -1339,17 +1381,17 @@ bool HelloWorld::init() {
         }
         const auto& items = focusedItems();
         if (items.empty()) return;
-        const bool previous = keyCode == EventKeyboard::KeyCode::KEY_DPAD_LEFT ||
-            keyCode == EventKeyboard::KeyCode::KEY_DPAD_UP ||
-            keyCode == EventKeyboard::KeyCode::KEY_LEFT_ARROW ||
-            keyCode == EventKeyboard::KeyCode::KEY_UP_ARROW;
-        const bool next = keyCode == EventKeyboard::KeyCode::KEY_DPAD_RIGHT ||
-            keyCode == EventKeyboard::KeyCode::KEY_DPAD_DOWN ||
-            keyCode == EventKeyboard::KeyCode::KEY_RIGHT_ARROW ||
-            keyCode == EventKeyboard::KeyCode::KEY_DOWN_ARROW;
-        if (previous || next) {
-            *focusIndex = (*focusIndex + (previous ? static_cast<int>(items.size()) - 1 : 1)) %
-                static_cast<int>(items.size());
+        Vec2 focusDirection = Vec2::ZERO;
+        if (keyCode == EventKeyboard::KeyCode::KEY_DPAD_LEFT ||
+            keyCode == EventKeyboard::KeyCode::KEY_LEFT_ARROW) focusDirection = Vec2(-1, 0);
+        else if (keyCode == EventKeyboard::KeyCode::KEY_DPAD_RIGHT ||
+                 keyCode == EventKeyboard::KeyCode::KEY_RIGHT_ARROW) focusDirection = Vec2(1, 0);
+        else if (keyCode == EventKeyboard::KeyCode::KEY_DPAD_UP ||
+                 keyCode == EventKeyboard::KeyCode::KEY_UP_ARROW) focusDirection = Vec2(0, 1);
+        else if (keyCode == EventKeyboard::KeyCode::KEY_DPAD_DOWN ||
+                 keyCode == EventKeyboard::KeyCode::KEY_DOWN_ARROW) focusDirection = Vec2(0, -1);
+        if (focusDirection != Vec2::ZERO) {
+            *focusIndex = directionalFocusIndex(items, *focusIndex, focusDirection);
             showFocus();
         } else if (keyCode == EventKeyboard::KeyCode::KEY_ENTER ||
                    keyCode == EventKeyboard::KeyCode::KEY_KP_ENTER ||
