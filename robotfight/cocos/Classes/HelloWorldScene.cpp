@@ -198,7 +198,7 @@ bool HelloWorld::init() {
     auto addVisibleChild = [=](Node* node, int zOrder = 0) {
         if (!node) return;
         node->setPosition(node->getPosition() + origin);
-        addVisibleChild(node, zOrder);
+        addChild(node, zOrder);
     };
 
     // Restore the last selected campaign arena when the app is reopened.
