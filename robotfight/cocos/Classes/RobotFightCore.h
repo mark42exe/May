@@ -74,6 +74,7 @@ public:
     static int losses();
     static int unlockedStages();
     static bool isStageUnlocked(int stageIndex);
+    static bool isStageComplete(int stageIndex);
     static void recordStageVictory(int stageIndex);
     static void recordResult(BattleOutcome outcome);
     static void resetForTests(int coins = 0);
