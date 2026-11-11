@@ -176,7 +176,7 @@ jobs:
           # an error; all other compiler diagnostics retain their normal policy.
           if "APP_CPPFLAGS += -Wno-error=implicit-const-int-float-conversion" not in check:
               with path.open("a") as stream:
-                  stream.write("APP_CPPFLAGS += -Wno-error=implicit-const-int-float-conversion\\n")
+                  stream.write("APP_CPPFLAGS += -Wno-error=implicit-const-int-float-conversion\n")
           print("Configured ARM64, Android 21, static libc++, and legacy pvmp3 warning compatibility")
           PY
           python3 - <<'PY'
