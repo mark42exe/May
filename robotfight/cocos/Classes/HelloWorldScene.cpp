@@ -895,6 +895,8 @@ bool HelloWorld::init() {
         std::size_t achievementCount = 0;
         int trackedAchievements = 0;
         int completedTrackedAchievements = 0;
+        std::vector<int> battleTargets;
+        std::vector<int> winTargets;
         const auto list = questData.find("QuestList");
         if (list != questData.end()) questCount = list->second.asValueVector().size();
         const auto achievements = questData.find("AchievementsDict");
@@ -909,17 +911,35 @@ bool HelloWorld::init() {
                     const auto fields = entry.asValueMap();
                     const auto requirement = fields.find("requirement");
                     if (requirement == fields.end()) continue;
-                    ++trackedAchievements;
                     const int target = std::atoi(requirement->second.asString().c_str());
-                    if (target > 0 && current >= target) ++completedTrackedAchievements;
+                    if (target <= 0) continue;
+                    ++trackedAchievements;
+                    if (current >= target) ++completedTrackedAchievements;
+                    (group.first == "battle" ? battleTargets : winTargets).push_back(target);
                 }
             }
         }
+        std::sort(battleTargets.begin(), battleTargets.end());
+        battleTargets.erase(std::unique(battleTargets.begin(), battleTargets.end()), battleTargets.end());
+        std::sort(winTargets.begin(), winTargets.end());
+        winTargets.erase(std::unique(winTargets.begin(), winTargets.end()), winTargets.end());
+
+        std::string milestoneLines = "\\n\\nRECOVERED MILESTONES";
+        const auto appendMilestones = [&](const char* label, const std::vector<int>& targets, int current) {
+            const std::size_t limit = std::min<std::size_t>(4, targets.size());
+            for (std::size_t i = 0; i < limit; ++i) {
+                milestoneLines += StringUtils::format("\\n%s %d  %s", label, targets[i],
+                    current >= targets[i] ? "[DONE]" : "[LOCKED]");
+            }
+        };
+        appendMilestones("BATTLES", battleTargets, LocalProfile::battles());
+        appendMilestones("WINS", winTargets, LocalProfile::wins());
+
         const std::string body = StringUtils::format(
-            "%d recovered quests\\n%d original achievements\\n\\nBATTLES  %d\\nWINS  %d\\n\\nBATTLE ACHIEVEMENTS  %d / %d\\nOther quest triggers are not yet reconstructed.",
+            "%d recovered quests\\n%d original achievements\\n\\nBATTLES  %d\\nWINS  %d\\n\\nBATTLE ACHIEVEMENTS  %d / %d%s\\n\\nOther quest triggers are not yet reconstructed.",
             static_cast<int>(questCount), static_cast<int>(achievementCount),
             LocalProfile::battles(), LocalProfile::wins(),
-            completedTrackedAchievements, trackedAchievements);
+            completedTrackedAchievements, trackedAchievements, milestoneLines.c_str());
         infoPanel("QUESTS & ACHIEVEMENTS", body);
     });
     questItem->setPosition(w * 0.77f, h * 0.13f);
