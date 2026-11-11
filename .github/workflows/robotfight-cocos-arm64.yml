@@ -10,6 +10,7 @@ on:
       - "tools/audit_robotfight_stage_gallery.py"
       - "tools/validate_imported_robotfight_resources.py"
       - "tools/stage_recovered_robotfight_scenes.py"
+      - "tools/audit_robotfight_audio.py"
       - ".github/workflows/robotfight-cocos-arm64.yml"
 
 concurrency:
@@ -255,6 +256,17 @@ jobs:
       - name: Preflight all imported original images and critical data
         run: |
           python3 tools/validate_imported_robotfight_resources.py "$PROJECT_DIR/Resources/original"
+
+      - name: Audit original audio event references
+        run: |
+          python3 tools/audit_robotfight_audio.py "$PROJECT_DIR/Resources/original" --out "$RUNNER_TEMP/audio_event_audit.json"
+
+      - name: Upload original audio event audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-Audio-Event-Audit
+          path: ${{ runner.temp }}/audio_event_audit.json
+          if-no-files-found: error
 
       - name: Audit original robot part geometry and image references
         run: |
