@@ -36,9 +36,25 @@ def main() -> None:
     else:
         try:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if not isinstance(manifest, dict):
+                raise ValueError("manifest root must be a JSON object")
+            listed = manifest.get("files")
+            if not isinstance(listed, list) or not all(isinstance(item, str) for item in listed):
+                raise ValueError("manifest 'files' must be a list of paths")
+            if manifest.get("imported_files") != len(listed):
+                raise ValueError("manifest imported_files count does not match its file list")
+            if len(set(listed)) != len(listed):
+                raise ValueError("manifest contains duplicate resource paths")
+            for relative in listed:
+                candidate = Path(relative)
+                if candidate.is_absolute() or ".." in candidate.parts:
+                    problems.append(f"Unsafe path in asset manifest: {relative}")
+                    continue
+                if not (root / candidate).is_file():
+                    problems.append(f"Manifest resource was not imported: {relative}")
         except Exception as exc:
             manifest = {}
-            problems.append(f"Asset manifest cannot be parsed: {exc}")
+            problems.append(f"Asset manifest is invalid: {exc}")
 
     files = [p for p in root.rglob("*") if p.is_file()]
     if len(files) < args.minimum_files:
