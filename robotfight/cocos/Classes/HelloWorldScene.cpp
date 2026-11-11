@@ -191,10 +191,20 @@ bool HelloWorld::init() {
     const float w = visible.width;
     const float h = visible.height;
 
-    // Original Toy Attack arena artwork is loaded from the recovered DCA resources.
-    // Start in the recovered training arena artwork; stage selection swaps this
-    // for the corresponding original full-scene thumbnail before a fight begins.
-    auto arena = Sprite::create("original/scene_thumbnail_11.png");
+    // Restore the last selected campaign arena when the app is reopened.
+    const char* campaignStageIds[] = {"scene_11", "scene_0", "scene_1", "scene_3", "scene_13", "scene_19"};
+    auto selectedStageIndex = std::make_shared<int>(0);
+    const std::string savedStage = UserDefault::getInstance()->getStringForKey("rf.stage", "scene_11");
+    for (int i = 0; i < 6; ++i) {
+        if (savedStage == campaignStageIds[i]) {
+            *selectedStageIndex = i;
+            break;
+        }
+    }
+    const std::string savedThumbnail = std::string("original/scene_thumbnail_") +
+        std::string(campaignStageIds[*selectedStageIndex]).substr(6) + ".png";
+    auto arena = Sprite::create(savedThumbnail);
+    if (!arena) arena = Sprite::create("original/scene_thumbnail_11.png");
     if (!arena) arena = Sprite::create("original/background_3_1.png");
     if (arena) {
         const auto textureSize = arena->getContentSize();
@@ -224,11 +234,6 @@ bool HelloWorld::init() {
     }, UserDefault::getInstance()->getStringForKey("rf.part.battery", "0_0"));
     auto botBuild = makeDataBuild("TRAINING BOT", {"1_0", "1_0", "3_5", "0_0", "1_0"}, "0_1");
     auto battle = std::make_shared<Battle>(playerBuild, botBuild, 0x51A7u);
-    const char* campaignStageIds[] = {"scene_11", "scene_0", "scene_1", "scene_3", "scene_13", "scene_19"};
-    auto selectedStageIndex = std::make_shared<int>(0);
-    const std::string savedStage = UserDefault::getInstance()->getStringForKey("rf.stage", "scene_11");
-    for (int i = 0; i < 6; ++i) if (savedStage == campaignStageIds[i]) *selectedStageIndex = i;
-
     // Original battle HUD components recovered from RFBattleLayer.ccb.
     if (auto hudLeft = Sprite::create("original/battle_player_info.png")) {
         hudLeft->setPosition(w * 0.25f, h * 0.91f);
