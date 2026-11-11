@@ -109,14 +109,27 @@ def main():
     args.output.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="toy-attack-assets-") as td:
         source = unpack_input(args.input, pathlib.Path(td))
-        counts = {"images_png": 0, "images_webp_converted": 0, "data_files": 0}
+        counts = {"images_png": 0, "images_webp_converted": 0, "data_files": 0,
+                  "webp_png_name_collisions_skipped": 0}
         imported = []
+        imported_sources = {}
         for item in sorted(source.rglob("*")):
             if not item.is_file() or item.name == "_archive_manifest.json":
                 continue
             rel = item.relative_to(source)
             suffix = item.suffix.lower()
             dest_rel = rel.with_suffix(".png") if suffix == ".webp" else rel
+            key = dest_rel.as_posix()
+            previous = imported_sources.get(key)
+            if previous is not None:
+                # A source PNG is the canonical runtime resource when a WebP
+                # conversion would otherwise overwrite the same destination.
+                if suffix == ".webp" and previous.suffix.lower() == ".png":
+                    counts["webp_png_name_collisions_skipped"] += 1
+                    continue
+                raise ValueError(
+                    f"Resource destination collision: {previous.as_posix()} and {rel.as_posix()} -> {key}"
+                )
             dest = args.output / dest_rel
             dest.parent.mkdir(parents=True, exist_ok=True)
             if suffix == ".webp":
@@ -129,7 +142,8 @@ def main():
                     counts["images_png"] += 1
                 else:
                     counts["data_files"] += 1
-            imported.append(dest_rel.as_posix())
+            imported_sources[key] = rel
+            imported.append(key)
         manifest = {"source": args.input.name, "imported_files": len(imported),
                     "counts": counts, "files": imported}
         (args.output / "original_asset_manifest.json").write_text(
