@@ -702,77 +702,157 @@ bool HelloWorld::init() {
         panel->addChild(heading);
         const char* stageIds[] = {"scene_11","scene_0","scene_1","scene_3","scene_13","scene_19"};
         const char* stageNames[] = {"TRAINING","SCRAP YARD","FACTORY","ROOFTOPS","CORE DROP","FINAL PIT"};
+        const char* stageNotes[] = {
+            "Campaign entry arena", "Second campaign arena", "Third campaign arena",
+            "Fourth campaign arena", "Fifth campaign arena", "Final campaign arena"
+        };
+        int initialIndex = 0;
         const std::string savedStage = UserDefault::getInstance()->getStringForKey("rf.stage", "scene_11");
-        std::string savedStageName = stageNames[0];
+        for (int i = 0; i < 6; ++i) if (savedStage == stageIds[i]) initialIndex = i;
+        auto focusedStage = std::make_shared<int>(initialIndex);
+        int clearedCount = 0;
+        for (int i = 0; i < 6; ++i)
+            if (robotfight::LocalProfile::isStageComplete(i)) ++clearedCount;
+        auto campaignLabel = Label::createWithSystemFont(
+            StringUtils::format("CAMPAIGN PROGRESS   %d / 6 ARENAS CLEARED", clearedCount),
+            "Arial-BOLD", 13);
+        campaignLabel->setPosition(w * 0.5f, h * 0.79f);
+        campaignLabel->setTextColor(Color4B(210, 230, 245, 255));
+        panel->addChild(campaignLabel, 3);
+        auto campaignTrack = DrawNode::create();
+        campaignTrack->drawSolidRect(Vec2(w * 0.12f, h * 0.755f),
+                                     Vec2(w * 0.88f, h * 0.765f),
+                                     Color4F(0.16f, 0.23f, 0.30f, 0.95f));
+        if (clearedCount > 0)
+            campaignTrack->drawSolidRect(Vec2(w * 0.12f, h * 0.755f),
+                Vec2(w * (0.12f + 0.76f * clearedCount / 6.0f), h * 0.765f),
+                Color4F(0.12f, 0.72f, 0.92f, 1.0f));
+        panel->addChild(campaignTrack, 2);
+
+        // Left side: campaign route. Right side: a larger live arena dossier.
+        std::vector<Label*> selectionMarkers;
         for (int i = 0; i < 6; ++i) {
-            if (savedStage == stageIds[i]) savedStageName = stageNames[i];
-        }
-        auto currentStageLabel = Label::createWithSystemFont(
-            "CURRENT ARENA: " + savedStageName, "Arial-BOLD", 13);
-        currentStageLabel->setPosition(w * 0.5f, h * 0.145f);
-        currentStageLabel->setTextColor(Color4B(110, 220, 255, 255));
-        panel->addChild(currentStageLabel, 3);
-        for (int i = 0; i < 6; ++i) {
-            const float x = w * (0.20f + (i % 3) * 0.30f);
-            const float y = h * (0.62f - (i / 3) * 0.32f);
+            const float x = w * (0.16f + (i % 2) * 0.25f);
+            const float y = h * (0.66f - (i / 2) * 0.205f);
             if (auto card = Sprite::create("original/story_level_panel.png")) {
                 card->setPosition(x, y);
-                card->setScale(0.22f);
+                card->setScale(0.19f);
                 panel->addChild(card, 0);
             }
-            auto preview = Sprite::create(std::string("original/scene_thumbnail_") +
-                                           std::string(stageIds[i]).substr(6) + ".png");
-            if (preview) {
-                preview->setPosition(x, y + h * 0.045f);
-                preview->setScale(std::min(0.085f, w * 0.105f / preview->getContentSize().width));
-                panel->addChild(preview, 1);
-            }
-            const std::string stageName = stageNames[i];
-            const std::string stageId = stageIds[i];
             const bool unlocked = robotfight::LocalProfile::isStageUnlocked(i);
             const bool completed = robotfight::LocalProfile::isStageComplete(i);
-            const bool isCurrent = savedStage == stageId;
-            auto currentMarker = Label::createWithSystemFont(isCurrent ? "CURRENT" : "",
-                                                               "Arial-BOLD", 10);
-            currentMarker->setPosition(x, y + h * 0.095f);
-            currentMarker->setTextColor(Color4B(110, 220, 255, 255));
-            panel->addChild(currentMarker, 2);
-            const std::string cardTitle = !unlocked ? stageName + "  /  LOCKED" :
-                (completed ? stageName + "  /  CLEARED" : stageName);
-            auto label = Label::createWithSystemFont(cardTitle, "Arial", 14);
-            label->setTextColor(unlocked ? Color4B(235, 245, 255, 255) :
-                                           Color4B(125, 140, 155, 255));
+            const std::string thumbPath = std::string("original/scene_thumbnail_") +
+                std::string(stageIds[i]).substr(6) + ".png";
+            auto preview = Sprite::create(thumbPath);
+            if (preview) {
+                preview->setPosition(x, y + h * 0.025f);
+                preview->setScale(std::min(0.060f, w * 0.075f / preview->getContentSize().width));
+                preview->setOpacity(unlocked ? 255 : 105);
+                panel->addChild(preview, 1);
+            }
+            auto marker = Label::createWithSystemFont(
+                i == initialIndex ? "SELECTED" : (completed ? "CLEARED" : (unlocked ? "AVAILABLE" : "LOCKED")),
+                "Arial-BOLD", 9);
+            marker->setPosition(x, y + h * 0.067f);
+            marker->setTextColor(!unlocked ? Color4B(135,145,155,255) :
+                (completed ? Color4B(120,235,165,255) : Color4B(110,220,255,255)));
+            panel->addChild(marker, 3);
+            selectionMarkers.push_back(marker);
+            auto label = Label::createWithSystemFont(stageNames[i], "Arial-BOLD", 12);
+            label->setTextColor(unlocked ? Color4B(235,245,255,255) : Color4B(125,140,155,255));
             auto item = MenuItemLabel::create(label, [=](Ref*) {
                 if (!unlocked) {
                     if (*statusRef) (*statusRef)->setString("CLEAR THE PREVIOUS ARENA TO UNLOCK THIS ONE");
                     return;
                 }
-                *selectedStageIndex = i;
-                currentStageLabel->setString("CURRENT ARENA: " + stageName);
-                UserDefault::getInstance()->setStringForKey("rf.stage", stageId);
-                UserDefault::getInstance()->flush();
-                if (arena) {
-                    const std::string texturePath = std::string("original/scene_thumbnail_") +
-                                                    stageId.substr(6) + ".png";
-                    if (auto texture = Director::getInstance()->getTextureCache()->addImage(texturePath)) {
-                        arena->setTexture(texture);
-                        arena->setTextureRect(Rect(0, 0, texture->getContentSize().width,
-                                                   texture->getContentSize().height));
-                        arena->setScale(std::max(w / texture->getContentSize().width,
-                                                 h / texture->getContentSize().height));
-                        arena->setPosition(w * 0.5f, h * 0.5f);
-                    }
+                *focusedStage = i;
+                for (int markerIndex = 0; markerIndex < 6; ++markerIndex)
+                    selectionMarkers[markerIndex]->setString(markerIndex == i ? "SELECTED" :
+                        (robotfight::LocalProfile::isStageComplete(markerIndex) ? "CLEARED" :
+                         (robotfight::LocalProfile::isStageUnlocked(markerIndex) ? "AVAILABLE" : "LOCKED")));
+                const std::string path = std::string("original/scene_thumbnail_") +
+                    std::string(stageIds[i]).substr(6) + ".png";
+                if (auto texture = Director::getInstance()->getTextureCache()->addImage(path)) {
+                    detailPreview->setTexture(texture);
+                    detailPreview->setTextureRect(Rect(0, 0, texture->getContentSize().width,
+                                                       texture->getContentSize().height));
+                    detailPreview->setScale(std::min(w * 0.31f / texture->getContentSize().width,
+                                                     h * 0.30f / texture->getContentSize().height));
                 }
-                if (*statusRef) (*statusRef)->setString(std::string("ARENA SELECTED: ") + stageName + "  |  READY");
-                closeModal(panel);
+                detailTitle->setString(stageNames[i]);
+                detailNote->setString(stageNotes[i]);
+                const bool done = robotfight::LocalProfile::isStageComplete(i);
+                detailStatus->setString(done ? "CAMPAIGN STATUS: CLEARED" : "CAMPAIGN STATUS: NOT CLEARED");
+                detailStatus->setTextColor(done ? Color4B(120,235,165,255) : Color4B(110,220,255,255));
             });
-            item->setPosition(x, y - h * 0.055f);
-            item->setContentSize(Size(w * 0.25f, h * 0.12f));
+            item->setPosition(x, y - h * 0.045f);
+            item->setContentSize(Size(w * 0.22f, h * 0.09f));
             modalFocusItems->push_back(item);
             auto menu = Menu::create(item, nullptr);
             menu->setPosition(Vec2::ZERO);
             panel->addChild(menu);
         }
+
+        if (auto frame = Sprite::create("original/story_level_panel.png")) {
+            frame->setPosition(w * 0.75f, h * 0.49f);
+            frame->setScale(0.34f);
+            panel->addChild(frame, 0);
+        }
+        auto detailPreview = Sprite::create(std::string("original/scene_thumbnail_") +
+            std::string(stageIds[initialIndex]).substr(6) + ".png");
+        if (!detailPreview) detailPreview = Sprite::create("original/scene_thumbnail_11.png");
+        if (detailPreview) {
+            detailPreview->setPosition(w * 0.75f, h * 0.57f);
+            detailPreview->setScale(std::min(w * 0.31f / detailPreview->getContentSize().width,
+                                             h * 0.30f / detailPreview->getContentSize().height));
+            panel->addChild(detailPreview, 1);
+        }
+        auto detailTitle = Label::createWithSystemFont(stageNames[initialIndex], "Arial-BOLD", 20);
+        detailTitle->setPosition(w * 0.75f, h * 0.37f);
+        detailTitle->setTextColor(Color4B(110,220,255,255));
+        panel->addChild(detailTitle, 3);
+        auto detailNote = Label::createWithSystemFont(stageNotes[initialIndex], "Arial", 12);
+        detailNote->setPosition(w * 0.75f, h * 0.33f);
+        detailNote->setTextColor(Color4B(215,225,235,255));
+        panel->addChild(detailNote, 3);
+        const bool initialComplete = robotfight::LocalProfile::isStageComplete(initialIndex);
+        auto detailStatus = Label::createWithSystemFont(
+            initialComplete ? "CAMPAIGN STATUS: CLEARED" : "CAMPAIGN STATUS: NOT CLEARED",
+            "Arial-BOLD", 11);
+        detailStatus->setPosition(w * 0.75f, h * 0.29f);
+        detailStatus->setTextColor(initialComplete ? Color4B(120,235,165,255) :
+                                                    Color4B(110,220,255,255));
+        panel->addChild(detailStatus, 3);
+
+        auto confirmLabel = Label::createWithSystemFont("CONFIRM ARENA", "Arial-BOLD", 17);
+        auto confirm = MenuItemLabel::create(confirmLabel, [=](Ref*) {
+            const int i = *focusedStage;
+            if (!robotfight::LocalProfile::isStageUnlocked(i)) return;
+            *selectedStageIndex = i;
+            UserDefault::getInstance()->setStringForKey("rf.stage", stageIds[i]);
+            UserDefault::getInstance()->flush();
+            if (arena) {
+                const std::string path = std::string("original/scene_thumbnail_") +
+                    std::string(stageIds[i]).substr(6) + ".png";
+                if (auto texture = Director::getInstance()->getTextureCache()->addImage(path)) {
+                    arena->setTexture(texture);
+                    arena->setTextureRect(Rect(0, 0, texture->getContentSize().width,
+                                               texture->getContentSize().height));
+                    arena->setScale(std::max(w / texture->getContentSize().width,
+                                             h / texture->getContentSize().height));
+                    arena->setPosition(w * 0.5f, h * 0.5f);
+                }
+            }
+            if (*statusRef) (*statusRef)->setString(std::string("ARENA SELECTED: ") +
+                stageNames[i] + "  |  READY");
+            closeModal(panel);
+        });
+        confirm->setPosition(w * 0.75f, h * 0.205f);
+        confirm->setContentSize(Size(w * 0.34f, h * 0.075f));
+        modalFocusItems->push_back(confirm);
+        auto confirmMenu = Menu::create(confirm, nullptr);
+        confirmMenu->setPosition(Vec2::ZERO);
+        panel->addChild(confirmMenu);
         auto closeLabel = Label::createWithSystemFont("BACK", "Arial", 20);
         auto close = MenuItemLabel::create(closeLabel, [=](Ref*) {
             closeModal(panel);
