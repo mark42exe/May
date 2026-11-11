@@ -1161,13 +1161,20 @@ bool HelloWorld::init() {
         return home->isVisible() ? homeFocusItems : battleFocusItems;
     };
     auto showFocus = [=]() {
+        // Modal dialogs are touch-operable; don't move hidden background focus behind them.
+        if (*activeModal) return;
         const auto& items = focusedItems();
         if (items.empty()) return;
         *focusIndex = std::max(0, std::min(*focusIndex, static_cast<int>(items.size()) - 1));
         for (std::size_t i = 0; i < items.size(); ++i) {
             if (!items[i]) continue;
-            if (static_cast<int>(i) == *focusIndex) items[i]->selected();
-            else items[i]->unselected();
+            if (static_cast<int>(i) == *focusIndex) {
+                items[i]->selected();
+                items[i]->setScale(1.08f);
+            } else {
+                items[i]->unselected();
+                items[i]->setScale(1.0f);
+            }
         }
     };
     showFocus();
