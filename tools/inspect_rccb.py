@@ -17,6 +17,7 @@ from collections import Counter
 from pathlib import Path
 
 PRINTABLE = re.compile(rb"[\x20-\x7e]{4,}")
+PRINTABLE_UTF16LE = re.compile(rb"(?:[\x20-\x7e]\x00){4,}")
 NODE_TYPES = {
     "CCNode", "CCSprite", "CCSprite9Slice", "CCLabelTTF", "CCLabelBMFont",
     "CCButton", "DCNode", "DCLabel", "DCLabelTTF", "DCSprite",
@@ -70,7 +71,13 @@ def inspect(path: Path) -> dict:
     strings = []
     for match in PRINTABLE.finditer(data):
         value = match.group().decode("ascii", "replace")
-        strings.append({"offset": match.start(), "value": value})
+        strings.append({"offset": match.start(), "value": value, "encoding": "ascii"})
+    # RCCB resources can store Cocos strings as narrow ASCII or UTF-16LE.
+    # Preserve byte offsets so strings can be correlated with binary records.
+    for match in PRINTABLE_UTF16LE.finditer(data):
+        value = match.group().decode("utf-16le", "replace")
+        strings.append({"offset": match.start(), "value": value, "encoding": "utf-16le"})
+    strings.sort(key=lambda item: (item["offset"], item["encoding"]))
     types = [s["value"] for s in strings if s["value"] in NODE_TYPES]
     resources = [s["value"] for s in strings if s["value"].lower().endswith(
         (".webp", ".png", ".jpg", ".jpeg", ".ttf", ".fnt", ".plist", ".json")
@@ -93,6 +100,7 @@ def inspect(path: Path) -> dict:
         "resource_references": resources,
         "identifier_candidates": names,
         "strings": strings,
+        "string_encoding_counts": dict(Counter(item["encoding"] for item in strings)),
         "candidate_offset_tables": find_offset_tables(data),
     }
 
