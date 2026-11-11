@@ -512,6 +512,8 @@ bool HelloWorld::init() {
         panel->addChild(closeMenu);
     };
 
+    // Shared home reference lets the battle HUD return to the native home hub.
+    auto homeRef = std::make_shared<Node*>(nullptr);
     auto openStages = [=]() {
         auto panel = Node::create();
         addChild(panel, 300);
@@ -601,7 +603,12 @@ bool HelloWorld::init() {
     auto stagesLabel = Label::createWithSystemFont("STAGES", "Arial", 16);
     auto stagesItem = MenuItemLabel::create(stagesLabel, [=](Ref*) { openStages(); });
     stagesItem->setPosition(w * 0.51f, h - 62);
-    auto navigation = Menu::create(garageItem, stagesItem, nullptr);
+    auto homeLabel = Label::createWithSystemFont("HOME", "Arial", 16);
+    auto homeItem = MenuItemLabel::create(homeLabel, [=](Ref*) {
+        if (*homeRef) (*homeRef)->setVisible(true);
+    });
+    homeItem->setPosition(w * 0.68f, h - 62);
+    auto navigation = Menu::create(garageItem, stagesItem, homeItem, nullptr);
     navigation->setPosition(Vec2::ZERO);
     addChild(navigation, 10);
 
@@ -771,6 +778,7 @@ bool HelloWorld::init() {
     // The proprietary RCCB node graph is not decoded yet, so this is a native
     // layout using the exact original backgrounds, robot stand, tier and menu art.
     auto home = Node::create();
+    *homeRef = home;
     addChild(home, 200);
     auto addHomeSprite = [=](const std::string& file, const Vec2& position,
                               float scale, int z = 0) -> Sprite* {
@@ -886,7 +894,7 @@ bool HelloWorld::init() {
         if (*menuMusicId != AudioEngine::INVALID_AUDIO_ID) AudioEngine::stop(*menuMusicId);
         if (UserDefault::getInstance()->getBoolForKey("rf.audio.music", true))
             AudioEngine::play2d("original/bgm_scene_battleFight.wav", true, 0.42f);
-        home->removeFromParent();
+        home->setVisible(false);
     });
     fightItem->setPosition(w * 0.73f, h * 0.43f);
     auto labLabel = Label::createWithSystemFont("ROBOT LAB", "Arial", 20);
