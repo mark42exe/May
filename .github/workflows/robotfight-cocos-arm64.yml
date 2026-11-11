@@ -255,6 +255,17 @@ jobs:
           path: ${{ runner.temp }}/robot_part_geometry_audit.json
           if-no-files-found: error
 
+      - name: Audit recovered arena gallery assets
+        run: |
+          python3 tools/audit_robotfight_stage_gallery.py "$PROJECT_DIR/Resources/original" --out "$RUNNER_TEMP/stage_gallery_audit.json"
+
+      - name: Upload arena gallery asset audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-Stage-Gallery-Audit
+          path: ${{ runner.temp }}/stage_gallery_audit.json
+          if-no-files-found: error
+
       - name: Install compatibility libraries for legacy NDK r16b
         run: |
           set -euo pipefail
