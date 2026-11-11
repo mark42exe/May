@@ -1265,6 +1265,42 @@ bool HelloWorld::init() {
         return home->isVisible() ? homeFocusItems : battleFocusItems;
     };
     auto showFocus = [=]() {
+        const auto& items = focusedItems();
+        if (items.empty()) return;
+        *focusIndex = std::max(0, std::min(*focusIndex, static_cast<int>(items.size()) - 1));
+        for (std::size_t i = 0; i < items.size(); ++i) {
+            if (!items[i]) continue;
+            if (static_cast<int>(i) == *focusIndex) {
+                items[i]->selected();
+                items[i]->setScale(1.08f);
+            } else {
+                items[i]->unselected();
+                items[i]->setScale(1.0f);
+            }
+        }
+    };
+    showFocus();
+
+    // Android hardware Back first dismisses the active modal, then returns home.
+    auto keyboardListener = EventListenerKeyboard::create();
+    keyboardListener->onKeyReleased = [=](EventKeyboard::KeyCode keyCode, Event*) {
+        if (keyCode == EventKeyboard::KeyCode::KEY_BACK ||
+            keyCode == EventKeyboard::KeyCode::KEY_ESCAPE) {
+            if (*activeModal) {
+                (*activeModal)->removeFromParent();
+                *activeModal = nullptr;
+                modalFocusItems->clear();
+                *modalFocusIndex = 0;
+            } else if (!home->isVisible()) {
+                returnToHome();
+                *focusIndex = 0;
+                showFocus();
+            } else {
+                Director::getInstance()->end();
+            }
+            return;
+        }
+
         if (*activeModal) {
             if (modalFocusItems->empty()) return;
             const bool modalPrevious = keyCode == EventKeyboard::KeyCode::KEY_DPAD_LEFT ||
@@ -1304,42 +1340,6 @@ bool HelloWorld::init() {
             }
             return;
         }
-        const auto& items = focusedItems();
-        if (items.empty()) return;
-        *focusIndex = std::max(0, std::min(*focusIndex, static_cast<int>(items.size()) - 1));
-        for (std::size_t i = 0; i < items.size(); ++i) {
-            if (!items[i]) continue;
-            if (static_cast<int>(i) == *focusIndex) {
-                items[i]->selected();
-                items[i]->setScale(1.08f);
-            } else {
-                items[i]->unselected();
-                items[i]->setScale(1.0f);
-            }
-        }
-    };
-    showFocus();
-
-    // Android hardware Back first dismisses the active modal, then returns home.
-    auto keyboardListener = EventListenerKeyboard::create();
-    keyboardListener->onKeyReleased = [=](EventKeyboard::KeyCode keyCode, Event*) {
-        if (keyCode == EventKeyboard::KeyCode::KEY_BACK ||
-            keyCode == EventKeyboard::KeyCode::KEY_ESCAPE) {
-            if (*activeModal) {
-                (*activeModal)->removeFromParent();
-                *activeModal = nullptr;
-                modalFocusItems->clear();
-                *modalFocusIndex = 0;
-            } else if (!home->isVisible()) {
-                returnToHome();
-                *focusIndex = 0;
-                showFocus();
-            } else {
-                Director::getInstance()->end();
-            }
-            return;
-        }
-
         const auto& items = focusedItems();
         if (items.empty()) return;
         const bool previous = keyCode == EventKeyboard::KeyCode::KEY_DPAD_LEFT ||
