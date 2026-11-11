@@ -72,6 +72,10 @@ public:
     static int battles();
     static int wins();
     static int losses();
+    static int experience();
+    static int pilotLevel();
+    static int experienceIntoLevel();
+    static int experienceToNextLevel();
     static int unlockedStages();
     static bool isStageUnlocked(int stageIndex);
     static bool isStageComplete(int stageIndex);
