@@ -329,15 +329,10 @@ jobs:
       - name: Install compatibility libraries for legacy NDK r16b
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/legacy-libs"
-          cd "$RUNNER_TEMP/legacy-libs"
-          curl -fL --retry 3 --retry-delay 2 \
-            https://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libncurses5_6.3-2ubuntu0.3_amd64.deb \
-            -o libncurses5.deb
-          curl -fL --retry 3 --retry-delay 2 \
-            https://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.3_amd64.deb \
-            -o libtinfo5.deb
-          sudo dpkg -i ./libtinfo5.deb ./libncurses5.deb
+          # Use the runner's configured Ubuntu package mirrors rather than
+          # hard-coding archive.ubuntu.com package URLs.
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libncurses5 libtinfo5
           ldconfig -p | grep -E 'libncurses.so.5|libtinfo.so.5'
 
       - name: Compile original Cocos 3.15.1 native library for ARM64 only (no APK)
