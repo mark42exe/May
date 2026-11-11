@@ -244,6 +244,17 @@ jobs:
           print("Image conversion counts:", manifest["counts"])
           PY
 
+      - name: Audit runtime stage, quest, sound, and robot preview assets
+        run: |
+          python3 tools/audit_robotfight_runtime_assets.py "$PROJECT_DIR/Resources/original" --out "$RUNNER_TEMP/robotfight_runtime_asset_audit.json"
+
+      - name: Upload runtime asset audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-Runtime-Asset-Audit
+          path: ${{ runner.temp }}/robotfight_runtime_asset_audit.json
+          if-no-files-found: error
+
       - name: Audit original robot part geometry and image references
         run: |
           python3 tools/audit_robot_part_geometry.py "$PROJECT_DIR/Resources/original" --out "$RUNNER_TEMP/robot_part_geometry_audit.json"
