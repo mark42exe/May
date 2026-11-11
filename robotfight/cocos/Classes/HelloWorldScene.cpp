@@ -741,7 +741,7 @@ bool HelloWorld::init() {
             "Arial-BOLD", 11);
 
         // Left side: campaign route. Right side: a larger live arena dossier.
-        std::vector<Label*> selectionMarkers;
+        auto selectionMarkers = std::make_shared<std::vector<Label*>>();
         for (int i = 0; i < 6; ++i) {
             const float x = w * (0.16f + (i % 2) * 0.25f);
             const float y = h * (0.66f - (i / 2) * 0.205f);
@@ -768,7 +768,7 @@ bool HelloWorld::init() {
             marker->setTextColor(!unlocked ? Color4B(135,145,155,255) :
                 (completed ? Color4B(120,235,165,255) : Color4B(110,220,255,255)));
             panel->addChild(marker, 3);
-            selectionMarkers.push_back(marker);
+            selectionMarkers->push_back(marker);
             auto label = Label::createWithSystemFont(stageNames[i], "Arial-BOLD", 12);
             label->setTextColor(unlocked ? Color4B(235,245,255,255) : Color4B(125,140,155,255));
             auto item = MenuItemLabel::create(label, [=](Ref*) {
@@ -778,17 +778,17 @@ bool HelloWorld::init() {
                 }
                 *focusedStage = i;
                 for (int markerIndex = 0; markerIndex < 6; ++markerIndex)
-                    selectionMarkers[markerIndex]->setString(markerIndex == i ? "SELECTED" :
+                    selectionMarkers->at(markerIndex)->setString(markerIndex == i ? "SELECTED" :
                         (robotfight::LocalProfile::isStageComplete(markerIndex) ? "CLEARED" :
                          (robotfight::LocalProfile::isStageUnlocked(markerIndex) ? "AVAILABLE" : "LOCKED")));
                 const std::string path = std::string("original/scene_thumbnail_") +
                     std::string(stageIds[i]).substr(6) + ".png";
                 if (auto texture = Director::getInstance()->getTextureCache()->addImage(path)) {
-                    detailPreview->setTexture(texture);
-                    detailPreview->setTextureRect(Rect(0, 0, texture->getContentSize().width,
+                    if (detailPreview) detailPreview->setTexture(texture);
+                    if (detailPreview) detailPreview->setTextureRect(Rect(0, 0, texture->getContentSize().width,
                                                        texture->getContentSize().height));
-                    detailPreview->setScale(std::min(w * 0.31f / texture->getContentSize().width,
-                                                     h * 0.30f / texture->getContentSize().height));
+                    if (detailPreview) detailPreview->setScale(std::min(w * 0.31f / texture->getContentSize().width,
+                                                                       h * 0.30f / texture->getContentSize().height));
                 }
                 detailTitle->setString(stageNames[i]);
                 detailNote->setString(stageNotes[i]);
