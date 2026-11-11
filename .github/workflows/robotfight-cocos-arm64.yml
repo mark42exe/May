@@ -10,6 +10,7 @@ on:
       - "tools/audit_robotfight_stage_gallery.py"
       - "tools/validate_imported_robotfight_resources.py"
       - "tools/stage_recovered_robotfight_scenes.py"
+      - "tools/audit_robotfight_scene_references.py"
       - ".github/workflows/robotfight-cocos-arm64.yml"
 
 concurrency:
@@ -270,6 +271,17 @@ jobs:
       - name: Audit recovered arena gallery assets
         run: |
           python3 tools/audit_robotfight_stage_gallery.py "$PROJECT_DIR/Resources/original" --out "$RUNNER_TEMP/stage_gallery_audit.json"
+
+      - name: Inventory recovered RCCB scene dependencies
+        run: |
+          python3 tools/audit_robotfight_scene_references.py "$PROJECT_DIR/Resources/original" --out "$RUNNER_TEMP/scene_reference_audit.json"
+
+      - name: Upload RCCB scene dependency audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-RCCB-Scene-Dependency-Audit
+          path: ${{ runner.temp }}/scene_reference_audit.json
+          if-no-files-found: error
 
       - name: Upload arena gallery asset audit
         uses: actions/upload-artifact@v4
