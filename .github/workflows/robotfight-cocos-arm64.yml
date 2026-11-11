@@ -143,6 +143,389 @@ jobs:
         run: |
           set -euo pipefail
           sed -i 's/^APP_ABI := .*/APP_ABI := arm64-v8a\nAPP_PLATFORM := android-21/' "$PROJECT_DIR/proj.android-studio/app/jni/Application.mk"
+          # NDK r25 removed GNU STL; select the supported static libc++ runtime.
+          if grep -q '^APP_STL *:=' "$PROJECT_DIR/proj.android-studio/app/jni/Application.mk"; then
+            sed -i 's/^APP_STL *:=.*/APP_STL := c++_static/' "$PROJECT_DIR/proj.android-studio/app/jni/Application.mk"
+          else
+            printf '\nAPP_STL := c++_static\n' >> "$PROJECT_DIR/proj.android-studio/app/jni/Application.mk"
+          fi
+          grep -q '^APP_STL := c++_static
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          root = Path(os.environ["PROJECT_DIR"])
+          mk = root / "proj.android-studio/app/jni/Android.mk"
+          text = mk.read_text()
+          old = "                   ../../../Classes/HelloWorldScene.cpp"
+          new = old + " \\\n                   ../../../Classes/RobotFightCore.cpp"
+          if old not in text:
+              raise SystemExit("Could not find original game source registration in Android.mk")
+          mk.write_text(text.replace(old, new))
+          PY
+          mkdir -p "$PROJECT_DIR/Resources"
+          mkdir -p "$PROJECT_DIR/Classes"
+          # Copy the complete checked-in game source directory, then verify every input
+          # before native compilation. This avoids silent partial copies and path assumptions.
+          cp -av robotfight/cocos/Classes/. "$PROJECT_DIR/Classes/"
+          python3 - <<'PY'
+          from pathlib import Path
+          import os, re
+          project = Path(os.environ["PROJECT_DIR"])
+          classes = project / "Classes"
+          required = [
+              "HelloWorldScene.cpp",
+              "HelloWorldScene.h",
+              "RobotFightCore.cpp",
+              "RobotFightCore.h",
+          ]
+          missing = [name for name in required if not (classes / name).is_file() or (classes / name).stat().st_size == 0]
+          if missing:
+              raise SystemExit("Missing or empty native source files: " + ", ".join(missing))
+          print("Native source preflight passed:", ", ".join(required))
+          PY
+          test -s "$PROJECT_DIR/Classes/HelloWorldScene.cpp"
+          test -s "$PROJECT_DIR/Classes/HelloWorldScene.h"
+          test -s "$PROJECT_DIR/Classes/RobotFightCore.cpp"
+          test -s "$PROJECT_DIR/Classes/RobotFightCore.h"
+
+      - name: Fetch original scene bundle from verified workflow artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 42789600523 --repo "${GITHUB_REPOSITORY}" --name "RobotFight-Original-RCCB-Scenes" --dir "$RUNNER_TEMP/rccb-artifact"
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          root = Path(__import__("os").environ["RUNNER_TEMP"]) / "rccb-artifact"
+          target = Path(__import__("os").environ["PROJECT_DIR"]) / "Resources"
+          for archive in root.rglob("*.zip"):
+              with ZipFile(archive) as z:
+                  z.extractall(target)
+          scenes = list(target.rglob("*.ccb"))
+          battle = [p for p in scenes if p.name == "RFBattleLayer.ccb"]
+          print("Recovered scene files:", len(scenes))
+          if len(scenes) != 138 or not battle:
+              raise SystemExit("Original battle scene bundle is incomplete")
+          # Cocos FileUtils resolves this resource from the Resources root.
+          import shutil
+          shutil.copy2(battle[0], target / "RFBattleLayer.ccb")
+          PY
+
+      - name: Fetch recovered original Toy Attack asset APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/original-pack"
+          gh run download 42789600523 --repo "$GITHUB_REPOSITORY" --name "RobotFight-ARM64-debug" --dir "$RUNNER_TEMP/original-pack"
+          ORIGINAL_APK="$RUNNER_TEMP/original-pack/app-debug.apk"
+          test -s "$ORIGINAL_APK"
+          python3 - "$ORIGINAL_APK" <<'PY'
+          import sys, zipfile
+          apk = sys.argv[1]
+          with zipfile.ZipFile(apk) as z:
+              names = set(z.namelist())
+              required = "assets/robotfight_original/gamedata.dca"
+              if required not in names:
+                  raise SystemExit("Recovered APK does not contain the original DCA asset archive")
+              manifest = "assets/robotfight_original/art/_archive_manifest.json"
+              if manifest not in names:
+                  raise SystemExit("Recovered APK is missing the original asset manifest")
+              import json
+              data = json.loads(z.read(manifest))
+              if data.get("count") != 3232:
+                  raise SystemExit(f"Unexpected original asset count: {data.get('count')}")
+              print("Verified recovered original archive:", data["count"], "entries")
+          PY
+          echo "ORIGINAL_APK=$ORIGINAL_APK" >> "$GITHUB_ENV"
+
+      - name: Import complete original Toy Attack resources
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet pillow
+          python3 tools/import_robotfight_assets.py --input "$ORIGINAL_APK" --output "$PROJECT_DIR/Resources/original"
+          # The 138 recovered RCCB scene files are supplied by the separate
+          # verified scene-bundle artifact, not by the DCA inside the APK.
+          # Stage them into the same runtime resource root expected by Cocos
+          # and by the resource preflight/audit tools.
+          python3 tools/stage_recovered_robotfight_scenes.py "$PROJECT_DIR/Resources" "$PROJECT_DIR/Resources/original"
+          python3 - "$PROJECT_DIR/Resources/original" <<'PY'
+          from pathlib import Path
+          import json, sys
+          root = Path(sys.argv[1])
+          manifest = json.loads((root / "original_asset_manifest.json").read_text())
+          files = manifest["imported_files"]
+          if files < 3000:
+              raise SystemExit(f"Original resource import incomplete: only {files} files")
+          for required in ("RFBattleLayer.ccb", "RFMainLayer.ccb", "RFEditorLayer.ccb", "RFPartsData.plist", "Normal1.ogg", "bgm_scene_battleFight.wav", "sfx_btn_press.ogg"):
+              if not (root / required).is_file():
+                  raise SystemExit(f"Required original resource missing: {required}")
+          print("Verified original resource import:", files, "files")
+          print("Image conversion counts:", manifest["counts"])
+          PY
+
+      - name: Preflight all imported original images and critical data
+        run: |
+          python3 tools/validate_imported_robotfight_resources.py "$PROJECT_DIR/Resources/original"
+
+      - name: Audit original sprite animation atlases and frame references
+        run: |
+          python3 tools/audit_robotfight_animations.py "$PROJECT_DIR/Resources/original" --out "$RUNNER_TEMP/animation_atlas_audit.json"
+
+      - name: Upload original animation atlas audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-Animation-Atlas-Audit
+          path: ${{ runner.temp }}/animation_atlas_audit.json
+          if-no-files-found: error
+
+      - name: Audit original robot part geometry and image references
+        run: |
+          python3 tools/audit_robot_part_geometry.py "$PROJECT_DIR/Resources/original" --out "$RUNNER_TEMP/robot_part_geometry_audit.json"
+
+      - name: Upload original robot geometry audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-Original-Part-Geometry-Audit
+          path: ${{ runner.temp }}/robot_part_geometry_audit.json
+          if-no-files-found: error
+
+      - name: Audit recovered arena gallery assets
+        run: |
+          python3 tools/audit_robotfight_stage_gallery.py "$PROJECT_DIR/Resources/original" --out "$RUNNER_TEMP/stage_gallery_audit.json"
+
+      - name: Validate all original sound-event references
+        run: |
+          python3 tools/audit_robotfight_audio.py "$PROJECT_DIR/Resources/original" --out "$RUNNER_TEMP/audio_event_audit.json"
+
+      - name: Upload original audio-event audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-Audio-Event-Audit
+          path: ${{ runner.temp }}/audio_event_audit.json
+          if-no-files-found: error
+
+      - name: Inventory recovered RCCB scene dependencies
+        run: |
+          python3 tools/audit_robotfight_scene_references.py "$PROJECT_DIR/Resources/original" --out "$RUNNER_TEMP/scene_reference_audit.json"
+
+      - name: Upload RCCB scene dependency audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-RCCB-Scene-Dependency-Audit
+          path: ${{ runner.temp }}/scene_reference_audit.json
+          if-no-files-found: error
+
+      - name: Inspect original RCCB binary strings and candidate record offsets
+        run: |
+          python3 tools/inspect_rccb.py "$PROJECT_DIR/Resources/original" --output "$RUNNER_TEMP/rccb_binary_inspection.json"
+
+      - name: Upload original RCCB binary inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-RCCB-Binary-Inspection
+          path: ${{ runner.temp }}/rccb_binary_inspection.json
+          if-no-files-found: error
+
+      - name: Upload arena gallery asset audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-Stage-Gallery-Audit
+          path: ${{ runner.temp }}/stage_gallery_audit.json
+          if-no-files-found: error
+
+      - name: Compile original Cocos 3.15.1 native library for ARM64 only (no APK)
+        run: |
+          set -euo pipefail
+          NDK="$ANDROID_HOME/ndk/25.2.9519653"
+          test -x "$NDK/ndk-build"
+          "$NDK/ndk-build" -C "$PROJECT_DIR/proj.android-studio/app" \
+            NDK_PROJECT_PATH=. \
+            APP_BUILD_SCRIPT=jni/Android.mk \
+            NDK_APPLICATION_MK=jni/Application.mk \
+            NDK_MODULE_PATH="$PROJECT_DIR/cocos2d:$PROJECT_DIR/cocos2d/cocos:$PROJECT_DIR/cocos2d/external" \
+            APP_ABI=arm64-v8a
+          find "$PROJECT_DIR/proj.android-studio/app/obj/local/arm64-v8a" -type f -name '*.so' -print
+          test -s "$PROJECT_DIR/proj.android-studio/app/obj/local/arm64-v8a/libMyGame.so"
+          file "$PROJECT_DIR/proj.android-studio/app/obj/local/arm64-v8a/libMyGame.so"
+          echo "Cocos 3.15.1 ARM64 native compilation passed."
+
+      - name: Install Android SDK components for Cocos template
+        run: |
+          set -euo pipefail
+          sdkmanager "platforms;android-24" "build-tools;25.0.0" "build-tools;35.0.0"
+
+      - name: Set up Java 8 for legacy Cocos Gradle template
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+
+      - name: Package prebuilt ARM64 native library into Android APK
+        run: |
+          set -euo pipefail
+          STUDIO="$PROJECT_DIR/proj.android-studio"
+          mkdir -p "$STUDIO/app/src/main/jniLibs/arm64-v8a"
+          cp "$STUDIO/app/obj/local/arm64-v8a/libMyGame.so" "$STUDIO/app/src/main/jniLibs/arm64-v8a/libMyGame.so"
+          test -s "$STUDIO/app/src/main/jniLibs/arm64-v8a/libMyGame.so"
+          cat > "$STUDIO/build.gradle" <<'GRADLE'
+          buildscript {
+              repositories { maven { url 'https://maven.google.com' }; mavenCentral(); jcenter() }
+              dependencies { classpath 'com.android.tools.build:gradle:2.3.0' }
+          }
+          allprojects { repositories { maven { url 'https://maven.google.com' }; mavenCentral(); jcenter() } }
+          GRADLE
+          cat > "$STUDIO/gradle.properties" <<'GRADLE'
+          PROP_TARGET_SDK_VERSION=24
+          PROP_APP_ABI=arm64-v8a
+          GRADLE
+          cat > "$STUDIO/settings.gradle" <<'GRADLE'
+          include ':libcocos2dx'
+          project(':libcocos2dx').projectDir = new File(settingsDir, '../cocos2d/cocos/platform/android/libcocos2dx')
+          include ':app'
+          GRADLE
+          cat > "$STUDIO/app/build.gradle" <<'GRADLE'
+          apply plugin: 'com.android.application'
+          android {
+              compileSdkVersion 24
+              buildToolsVersion "25.0.0"
+              defaultConfig {
+                  applicationId "com.animocabrands.robotfight.restored"
+                  minSdkVersion 21
+                  targetSdkVersion 24
+                  versionCode 1
+                  versionName "1.0-arm64"
+                  ndk { abiFilters "arm64-v8a" }
+              }
+              sourceSets.main {
+                  java.srcDir "src"
+                  res.srcDir "res"
+                  manifest.srcFile "AndroidManifest.xml"
+                  assets.srcDir "../../Resources"
+                  jniLibs.srcDir "src/main/jniLibs"
+              }
+          }
+          dependencies {
+              compile fileTree(dir: 'libs', include: ['*.jar'])
+              compile project(':libcocos2dx')
+          }
+          GRADLE
+          python3 - "$STUDIO/app/AndroidManifest.xml" <<'PY'
+          from pathlib import Path
+          import sys
+          p = Path(sys.argv[1])
+          s = p.read_text()
+          s = s.replace('package="org.cocos2dx.hellocpp"', 'package="com.animocabrands.robotfight.restored"')
+          p.write_text(s)
+          for strings in Path(sys.argv[1]).parent.joinpath("res").rglob("strings.xml"):
+              content = strings.read_text()
+              strings.write_text(content.replace("HelloCpp", "Toy Attack"))
+          PY
+          GRADLE_ZIP="$RUNNER_TEMP/gradle-3.3-bin.zip"
+          curl -fL --retry 3 --retry-delay 2 https://services.gradle.org/distributions/gradle-3.3-bin.zip -o "$GRADLE_ZIP"
+          unzip -q "$GRADLE_ZIP" -d "$RUNNER_TEMP"
+          "$RUNNER_TEMP/gradle-3.3/bin/gradle" -p "$STUDIO" --no-daemon --stacktrace :app:assembleDebug
+          APK="$(find "$STUDIO/app/build/outputs/apk" -type f -name "*.apk" -print -quit)"
+          test -n "$APK" && test -s "$APK"
+          mkdir -p "$RUNNER_TEMP/final-apk"
+          cp "$APK" "$RUNNER_TEMP/final-apk/ToyAttack_ARM64.apk"
+          file "$STUDIO/app/src/main/jniLibs/arm64-v8a/libMyGame.so"
+          python3 - "$APK" <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          import struct, sys
+          apk = Path(sys.argv[1])
+          with ZipFile(apk) as z:
+              names = set(z.namelist())
+              lib = "lib/arm64-v8a/libMyGame.so"
+              if lib not in names:
+                  raise SystemExit("APK missing ARM64 native library")
+              data = z.read(lib)
+              if data[:4] != bytes([127, 69, 76, 70]) or data[4] != 2 or data[5] != 1:
+                  raise SystemExit("Native library is not ELF64 little-endian")
+              machine = struct.unpack_from("<H", data, 18)[0]
+              if machine != 183:
+                  raise SystemExit(f"Native library machine is not AArch64: {machine}")
+              if "RFBattleLayer.ccb" not in names and not any(n.endswith("/RFBattleLayer.ccb") for n in names):
+                  raise SystemExit("APK missing recovered original battle scene")
+              print("APK verification passed: ARM64 ELF library and original battle scene present")
+          PY
+          python3 tools/validate_imported_robotfight_resources.py "$PROJECT_DIR/Resources/original" --apk "$APK"
+
+      - name: Verify APK archive, signature, SDK levels, and native ELF alignment
+        run: |
+          set -euo pipefail
+          APK="$RUNNER_TEMP/final-apk/ToyAttack_ARM64.apk"
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$AAPT"
+          "$AAPT" dump badging "$APK" > "$RUNNER_TEMP/apk-badging.txt"
+          grep -q "package: name='com.animocabrands.robotfight.restored'" "$RUNNER_TEMP/apk-badging.txt"
+          grep -q "sdkVersion:'21'" "$RUNNER_TEMP/apk-badging.txt"
+          grep -q "targetSdkVersion:'24'" "$RUNNER_TEMP/apk-badging.txt"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          ZIPALIGN="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -n 1)"
+          test -x "$APKSIGNER" || { echo "Android build-tools apksigner executable not found"; exit 1; }
+          test -x "$ZIPALIGN" || { echo "Android build-tools zipalign executable not found"; exit 1; }
+          "$APKSIGNER" verify --verbose "$APK"
+          "$ZIPALIGN" -c -v 4 "$APK"
+          # Prove the packaged launcher is the Cocos Android activity, not the
+          # separate HTML preview source kept in robotfight/android/.
+          grep -q "launchable-activity: name='.*AppActivity'" "$RUNNER_TEMP/apk-badging.txt"
+          python3 - "$APK" <<'PY'
+          from zipfile import ZipFile
+          import sys
+          with ZipFile(sys.argv[1]) as z:
+              names = set(z.namelist())
+              dex_files = sorted(n for n in names if n.endswith(".dex"))
+              if not dex_files:
+                  raise SystemExit("APK has no Dalvik bytecode")
+              dex = b"".join(z.read(n) for n in dex_files)
+              if b"org/cocos2dx/lib/Cocos2dxActivity" not in dex:
+                  raise SystemExit("Cocos2dxActivity missing from packaged DEX")
+              if any(n.endswith("/index.html") for n in names):
+                  raise SystemExit("HTML preview unexpectedly packaged as the launcher")
+              if "lib/arm64-v8a/libMyGame.so" not in names:
+                  raise SystemExit("Cocos ARM64 native library missing")
+              print("Runtime wiring verified: Cocos AppActivity + Cocos2dxActivity + ARM64 native library; HTML preview excluded")
+          PY
+          python3 - "$APK" <<'PY'
+          from zipfile import ZipFile
+          import struct, sys
+          with ZipFile(sys.argv[1]) as z:
+              name = "lib/arm64-v8a/libMyGame.so"
+              data = z.read(name)
+              if data[:4] != bytes([127, 69, 76, 70]) or data[4] != 2 or data[5] != 1:
+                  raise SystemExit("Expected ELF64 little-endian native library")
+              machine = struct.unpack_from("<H", data, 18)[0]
+              if machine != 183:
+                  raise SystemExit(f"Expected AArch64 machine 183, got {machine}")
+              phoff = struct.unpack_from("<Q", data, 32)[0]
+              phentsize, phnum = struct.unpack_from("<HH", data, 54)
+              if phentsize < 56 or phnum == 0:
+                  raise SystemExit("Invalid ELF program header table")
+              loads = []
+              for i in range(phnum):
+                  off = phoff + i * phentsize
+                  p_type = struct.unpack_from("<I", data, off)[0]
+                  p_align = struct.unpack_from("<Q", data, off + 48)[0]
+                  if p_type == 1:
+                      loads.append(p_align)
+              if not loads or any(a < 0x4000 or a & (a - 1) for a in loads):
+                  raise SystemExit(f"ELF PT_LOAD alignment below 16 KB or invalid: {loads}")
+              if not any(name.endswith("/RFBattleLayer.ccb") or name == "RFBattleLayer.ccb" for name in z.namelist()):
+                  raise SystemExit("Missing recovered RFBattleLayer.ccb scene")
+              print("APK validation passed; ELF PT_LOAD alignment:", loads)
+          PY
+
+      - name: Upload Toy Attack ARM64 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ToyAttack-ARM64-APK
+          path: ${{ runner.temp }}/final-apk/ToyAttack_ARM64.apk
+          if-no-files-found: error
+ "$PROJECT_DIR/proj.android-studio/app/jni/Application.mk"
           python3 - <<'PY'
           from pathlib import Path
           import os
