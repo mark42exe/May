@@ -403,6 +403,19 @@ bool HelloWorld::init() {
     auto activeModal = std::make_shared<Node*>(nullptr);
     auto modalFocusItems = std::make_shared<std::vector<MenuItem*>>();
     auto modalFocusIndex = std::make_shared<int>(0);
+    auto closeModal = [=](Node* panel) {
+        if (!panel) return;
+        if (*activeModal == panel) {
+            *activeModal = nullptr;
+            modalFocusItems->clear();
+            *modalFocusIndex = 0;
+        }
+        panel->stopAllActions();
+        panel->setCascadeOpacityEnabled(true);
+        panel->runAction(Sequence::create(
+            Spawn::create(FadeOut::create(0.14f), ScaleTo::create(0.14f, 0.96f), nullptr),
+            RemoveSelf::create(), nullptr));
+    };
 
     // Garage: cycle through original recovered part identifiers and persist each choice.
     auto openGarage = [=]() {
@@ -616,12 +629,7 @@ bool HelloWorld::init() {
 
         auto closeLabel = Label::createWithSystemFont("BACK", "Arial", 20);
         auto close = MenuItemLabel::create(closeLabel, [=](Ref*) {
-            if (*activeModal == panel) {
-                *activeModal = nullptr;
-                modalFocusItems->clear();
-                *modalFocusIndex = 0;
-            }
-            panel->removeFromParent();
+            closeModal(panel);
         });
         modalFocusItems->push_back(close);
         close->setPosition(w * 0.5f, h * 0.075f);
@@ -726,8 +734,7 @@ bool HelloWorld::init() {
                     }
                 }
                 if (*statusRef) (*statusRef)->setString(std::string("ARENA SELECTED: ") + stageName + "  |  READY");
-                if (*activeModal == panel) *activeModal = nullptr;
-                panel->removeFromParent();
+                closeModal(panel);
             });
             item->setPosition(x, y - h * 0.055f);
             item->setContentSize(Size(w * 0.25f, h * 0.12f));
@@ -738,12 +745,7 @@ bool HelloWorld::init() {
         }
         auto closeLabel = Label::createWithSystemFont("BACK", "Arial", 20);
         auto close = MenuItemLabel::create(closeLabel, [=](Ref*) {
-            if (*activeModal == panel) {
-                *activeModal = nullptr;
-                modalFocusItems->clear();
-                *modalFocusIndex = 0;
-            }
-            panel->removeFromParent();
+            closeModal(panel);
         });
         modalFocusItems->push_back(close);
         close->setPosition(w * 0.5f, h * 0.08f);
@@ -1060,12 +1062,7 @@ bool HelloWorld::init() {
         panel->addChild(body);
         auto closeLabel = Label::createWithSystemFont("BACK", "Arial", 20);
         auto close = MenuItemLabel::create(closeLabel, [=](Ref*) {
-            if (*activeModal == panel) {
-                *activeModal = nullptr;
-                modalFocusItems->clear();
-                *modalFocusIndex = 0;
-            }
-            panel->removeFromParent();
+            closeModal(panel);
         });
         modalFocusItems->push_back(close);
         close->setPosition(w * 0.5f, h * 0.16f);
@@ -1224,12 +1221,7 @@ bool HelloWorld::init() {
         makeToggle("SOUND EFFECTS", "rf.audio.effects", h * 0.43f, nullptr);
         auto backLabel = Label::createWithSystemFont("BACK", "Arial", 20);
         auto back = MenuItemLabel::create(backLabel, [=](Ref*) {
-            if (*activeModal == panel) {
-                *activeModal = nullptr;
-                modalFocusItems->clear();
-                *modalFocusIndex = 0;
-            }
-            panel->removeFromParent();
+            closeModal(panel);
         });
         modalFocusItems->push_back(back);
         back->setPosition(w * 0.5f, h * 0.20f);
@@ -1287,10 +1279,7 @@ bool HelloWorld::init() {
         if (keyCode == EventKeyboard::KeyCode::KEY_BACK ||
             keyCode == EventKeyboard::KeyCode::KEY_ESCAPE) {
             if (*activeModal) {
-                (*activeModal)->removeFromParent();
-                *activeModal = nullptr;
-                modalFocusItems->clear();
-                *modalFocusIndex = 0;
+                closeModal(*activeModal);
             } else if (!home->isVisible()) {
                 returnToHome();
                 *focusIndex = 0;
