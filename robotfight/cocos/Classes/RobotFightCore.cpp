@@ -146,6 +146,13 @@ bool LocalProfile::isStageUnlocked(int stageIndex) {
     return stageIndex >= 0 && stageIndex < unlockedStages();
 }
 
+bool LocalProfile::isStageComplete(int stageIndex) {
+    if (stageIndex < 0 || stageIndex >= 6) return false;
+    char key[64];
+    std::snprintf(key, sizeof(key), "rf.campaign.stage.%d.complete", stageIndex);
+    return cocos2d::UserDefault::getInstance()->getBoolForKey(key, false);
+}
+
 void LocalProfile::recordStageVictory(int stageIndex) {
     if (stageIndex < 0 || stageIndex >= 6) return;
     auto* save = cocos2d::UserDefault::getInstance();
