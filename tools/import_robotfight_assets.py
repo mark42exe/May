@@ -18,24 +18,34 @@ def safe_target(root: pathlib.Path, name: str) -> pathlib.Path:
     return target
 
 def extract_dca(data: bytes, out: pathlib.Path) -> int:
-    if data[:4] != b"DCA\0":
-        raise ValueError("Input is not a DCA archive")
+    if len(data) < 28 or data[:4] != b"DCA\\0":
+        raise ValueError("Input is not a complete DCA archive")
     version, flags, records_offset, records_bytes, strings_offset, strings_bytes = struct.unpack_from("<6I", data, 4)
-    if records_bytes % 8 or strings_offset + strings_bytes > len(data):
+    if (
+        records_bytes % 8
+        or records_offset < 28
+        or records_offset + records_bytes > len(data)
+        or strings_offset < 28
+        or strings_offset + strings_bytes > len(data)
+    ):
         raise ValueError("Invalid DCA directory bounds")
     table = data[strings_offset:strings_offset + strings_bytes]
     names, pos = {}, 0
-    for raw in table.split(b"\0"):
+    for raw in table.split(b"\\0"):
         names[pos] = raw.decode("utf-8", "replace")
         pos += len(raw) + 1
     manifest = []
+    seen_names = set()
     for i in range(records_bytes // 8):
         name_offset, file_offset = struct.unpack_from("<II", data, records_offset + i * 8)
-        if file_offset + 12 > len(data):
+        if file_offset < 28 or file_offset + 12 > len(data):
             raise ValueError(f"Invalid DCA file offset at record {i}")
         name = names.get(name_offset)
-        if name is None:
-            raise ValueError(f"Unknown DCA name offset at record {i}")
+        if name is None or not name:
+            raise ValueError(f"Unknown or empty DCA name at record {i}")
+        if name in seen_names:
+            raise ValueError(f"Duplicate DCA resource name: {name}")
+        seen_names.add(name)
         crc, codec, size = struct.unpack_from("<III", data, file_offset)
         payload = data[file_offset + 12:file_offset + 12 + size]
         if len(payload) != size or (zlib.crc32(payload) & 0xffffffff) != crc:
