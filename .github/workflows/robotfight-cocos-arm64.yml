@@ -12,6 +12,7 @@ on:
       - "tools/stage_recovered_robotfight_scenes.py"
       - "tools/audit_robotfight_scene_references.py"
       - "tools/audit_robotfight_audio.py"
+      - "tools/audit_robotfight_animations.py"
       - ".github/workflows/robotfight-cocos-arm64.yml"
 
 concurrency:
@@ -257,6 +258,17 @@ jobs:
       - name: Preflight all imported original images and critical data
         run: |
           python3 tools/validate_imported_robotfight_resources.py "$PROJECT_DIR/Resources/original"
+
+      - name: Audit original sprite animation atlases and frame references
+        run: |
+          python3 tools/audit_robotfight_animations.py "$PROJECT_DIR/Resources/original" --out "$RUNNER_TEMP/animation_atlas_audit.json"
+
+      - name: Upload original animation atlas audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-Animation-Atlas-Audit
+          path: ${{ runner.temp }}/animation_atlas_audit.json
+          if-no-files-found: error
 
       - name: Audit original robot part geometry and image references
         run: |
