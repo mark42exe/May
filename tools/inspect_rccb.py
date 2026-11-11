@@ -124,9 +124,29 @@ def main() -> None:
     duplicate_hashes = {
         digest: names for digest, names in duplicate_hashes.items() if len(names) > 1
     }
+    # Cross-scene indexes expose reusable original resources and identifiers.
+    # These relationships help map scene families without guessing the binary schema.
+    resource_to_scenes = {}
+    identifier_to_scenes = {}
+    for scene in scenes:
+        for resource in set(scene["resource_references"]):
+            resource_to_scenes.setdefault(resource, []).append(scene["file"])
+        for item in set(scene["identifier_candidates"]):
+            identifier_to_scenes.setdefault(item, []).append(scene["file"])
+    shared_resources = {
+        key: value for key, value in sorted(resource_to_scenes.items())
+        if len(value) > 1
+    }
+    shared_identifiers = {
+        key: value for key, value in sorted(identifier_to_scenes.items())
+        if len(value) > 1
+    }
     report = {
-        "format": "RCCB diagnostic inventory; not a decoded scene graph",
+        "format": "RCCB diagnostic inventory with cross-scene index; not a decoded scene graph",
         "scene_count": len(scenes),
+        "unique_resource_reference_count": len(resource_to_scenes),
+        "shared_resource_references": shared_resources,
+        "shared_identifier_candidates": shared_identifiers,
         "total_scene_bytes": sum(scene["size"] for scene in scenes),
         "magic_counts": dict(Counter(s["magic"] for s in scenes)),
         "aggregate_node_type_counts": dict(node_type_totals.most_common()),
