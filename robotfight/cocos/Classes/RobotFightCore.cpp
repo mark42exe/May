@@ -135,6 +135,10 @@ int LocalProfile::coins() { return cocos2d::UserDefault::getInstance()->getInteg
 int LocalProfile::battles() { return cocos2d::UserDefault::getInstance()->getIntegerForKey("rf.battles", 0); }
 int LocalProfile::wins() { return cocos2d::UserDefault::getInstance()->getIntegerForKey("rf.wins", 0); }
 int LocalProfile::losses() { return cocos2d::UserDefault::getInstance()->getIntegerForKey("rf.losses", 0); }
+int LocalProfile::experience() { return cocos2d::UserDefault::getInstance()->getIntegerForKey("rf.pilot.xp", 0); }
+int LocalProfile::pilotLevel() { return experience() / 250 + 1; }
+int LocalProfile::experienceIntoLevel() { return experience() % 250; }
+int LocalProfile::experienceToNextLevel() { return 250 - experienceIntoLevel(); }
 
 int LocalProfile::unlockedStages() {
     const int saved = cocos2d::UserDefault::getInstance()->getIntegerForKey(
@@ -168,6 +172,9 @@ void LocalProfile::recordResult(BattleOutcome outcome) {
     if (outcome == BattleOutcome::Ongoing) return;
     auto* save = cocos2d::UserDefault::getInstance();
     save->setIntegerForKey("rf.battles", battles() + 1);
+    const int xpReward = outcome == BattleOutcome::PlayerWin ? 100 :
+                         outcome == BattleOutcome::Draw ? 60 : 40;
+    save->setIntegerForKey("rf.pilot.xp", experience() + xpReward);
     if (outcome == BattleOutcome::PlayerWin) {
         save->setIntegerForKey("rf.coins", coins() + kVictoryReward);
         save->setIntegerForKey("rf.wins", wins() + 1);
@@ -184,6 +191,7 @@ void LocalProfile::resetForTests(int value) {
     save->setIntegerForKey("rf.battles", 0);
     save->setIntegerForKey("rf.wins", 0);
     save->setIntegerForKey("rf.losses", 0);
+    save->setIntegerForKey("rf.pilot.xp", 0);
     save->flush();
 }
 } // namespace robotfight
