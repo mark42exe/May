@@ -142,14 +142,36 @@ jobs:
       - name: Configure original Cocos 3.15.1 for ARM64
         run: |
           set -euo pipefail
-          sed -i 's/^APP_ABI := .*/APP_ABI := arm64-v8a\nAPP_PLATFORM := android-21/' "$PROJECT_DIR/proj.android-studio/app/jni/Application.mk"
-          # NDK r25 removed GNU STL; select the supported static libc++ runtime.
-          if grep -q '^APP_STL *:=' "$PROJECT_DIR/proj.android-studio/app/jni/Application.mk"; then
-            sed -i 's/^APP_STL *:=.*/APP_STL := c++_static/' "$PROJECT_DIR/proj.android-studio/app/jni/Application.mk"
-          else
-            printf '\nAPP_STL := c++_static\n' >> "$PROJECT_DIR/proj.android-studio/app/jni/Application.mk"
-          fi
-          grep -q '^APP_STL := c++_static$' "$PROJECT_DIR/proj.android-studio/app/jni/Application.mk"
+          python3 - "$PROJECT_DIR/proj.android-studio/app/jni/Application.mk" <<'PY'
+          from pathlib import Path
+          import sys
+          path = Path(sys.argv[1])
+          lines = path.read_text().splitlines()
+          values = {
+              "APP_ABI": "arm64-v8a",
+              "APP_PLATFORM": "android-21",
+              "APP_STL": "c++_static",
+          }
+          result = []
+          seen = set()
+          for line in lines:
+              key = line.split(":=", 1)[0].strip() if ":=" in line else None
+              if key in values:
+                  if key not in seen:
+                      result.append(f"{key} := {values[key]}")
+                      seen.add(key)
+              else:
+                  result.append(line)
+          for key, value in values.items():
+              if key not in seen:
+                  result.append(f"{key} := {value}")
+          path.write_text("\\n".join(result) + "\\n")
+          check = path.read_text()
+          for key, value in values.items():
+              if f"{key} := {value}" not in check:
+                  raise SystemExit(f"Failed to configure {key}")
+          print("Configured ARM64, Android 21, and static libc++")
+          PY
           python3 - <<'PY'
           from pathlib import Path
           import os
