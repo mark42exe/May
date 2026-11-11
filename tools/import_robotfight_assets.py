@@ -17,6 +17,19 @@ def safe_target(root: pathlib.Path, name: str) -> pathlib.Path:
     target.parent.mkdir(parents=True, exist_ok=True)
     return target
 
+def write_unique(root: pathlib.Path, name: str, payload: bytes) -> pathlib.Path:
+    target = safe_target(root, name)
+    if target.exists():
+        raise ValueError(f"Duplicate archive path: {name!r}")
+    target.write_bytes(payload)
+    return target
+
+
+def is_junk_metadata(rel: pathlib.Path) -> bool:
+    ignored = {".DS_Store", "Thumbs.db", "desktop.ini"}
+    return any(part in ignored or part == "__MACOSX" or part.startswith("._")
+               for part in rel.parts)
+
 def extract_dca(data: bytes, out: pathlib.Path) -> int:
     if data[:4] != b"DCA\0":
         raise ValueError("Input is not a DCA archive")
@@ -51,7 +64,7 @@ def extract_dca(data: bytes, out: pathlib.Path) -> int:
         payload = data[file_offset + 12:payload_end]
         if len(payload) != size or (zlib.crc32(payload) & 0xffffffff) != crc:
             raise ValueError(f"DCA CRC/length mismatch: {name}")
-        safe_target(out, name).write_bytes(payload)
+        write_unique(out, name, payload)
         manifest.append({"name": name, "codec": codec, "bytes": size, "crc32": f"{crc:08x}"})
     (out / "_archive_manifest.json").write_text(json.dumps({
         "version": version, "flags": flags, "count": len(manifest), "files": manifest
@@ -85,7 +98,7 @@ def unpack_input(path: pathlib.Path, temp: pathlib.Path) -> pathlib.Path:
                 suffix = pathlib.PurePosixPath(relative).suffix.lower()
                 if "/" in relative or suffix not in {".ogg", ".wav", ".m4a", ".mp3", ".ttf"}:
                     continue
-                safe_target(source, relative).write_bytes(archive.read(info))
+                write_unique(source, relative, archive.read(info))
             return source
         # Named asset bundle: flatten its single enclosing folder but keep subdirectories.
         for info in archive.infolist():
@@ -96,7 +109,7 @@ def unpack_input(path: pathlib.Path, temp: pathlib.Path) -> pathlib.Path:
                 name = name.split("/", 1)[1]
             if not name:
                 continue
-            safe_target(source, name).write_bytes(archive.read(info))
+            write_unique(source, name, archive.read(info))
     return source
 
 def main():
@@ -116,6 +129,8 @@ def main():
             if not item.is_file() or item.name == "_archive_manifest.json":
                 continue
             rel = item.relative_to(source)
+            if is_junk_metadata(rel):
+                continue
             suffix = item.suffix.lower()
             dest_rel = rel.with_suffix(".png") if suffix == ".webp" else rel
             dest = args.output / dest_rel
