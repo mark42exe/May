@@ -8,6 +8,7 @@ on:
       - "tools/import_robotfight_assets.py"
       - "tools/audit_robot_part_geometry.py"
       - "tools/audit_robotfight_stage_gallery.py"
+      - "tools/validate_imported_robotfight_resources.py"
       - ".github/workflows/robotfight-cocos-arm64.yml"
 
 concurrency:
@@ -244,6 +245,10 @@ jobs:
           print("Verified original resource import:", files, "files")
           print("Image conversion counts:", manifest["counts"])
           PY
+
+      - name: Preflight all imported original images and critical data
+        run: |
+          python3 tools/validate_imported_robotfight_resources.py "$PROJECT_DIR/Resources/original"
 
       - name: Audit original robot part geometry and image references
         run: |
