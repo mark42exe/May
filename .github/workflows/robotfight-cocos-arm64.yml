@@ -114,6 +114,29 @@ jobs:
           print("Verified POSIX read/close declarations after class header")
           PY
 
+      - name: Patch Cocos ZipUtils stdio declarations for modern libc++
+        run: |
+          set -euo pipefail
+          SOURCE="$PROJECT_DIR/cocos2d/cocos/base/ZipUtils.cpp"
+          test -s "$SOURCE"
+          python3 - "$SOURCE" <<'PY'
+          from pathlib import Path
+          import sys
+          path = Path(sys.argv[1])
+          source = path.read_text()
+          if "fgetpos" not in source and "fsetpos" not in source:
+              # libc++'s <cstdio> imports these C declarations into std::;
+              # include the C stdio header before C++ headers are parsed.
+              pass
+          if "#include <stdio.h>" not in source:
+              source = "#include <stdio.h>" + chr(10) + source
+              path.write_text(source)
+          check = path.read_text()
+          if "#include <stdio.h>" not in check or "ZipUtils" not in check:
+              raise SystemExit("ZipUtils stdio compatibility patch verification failed")
+          print("Verified stdio declarations are included before ZipUtils C++ headers")
+          PY
+
       - name: Install Cocos 3.15.1 third-party native dependencies
         run: |
           set -euo pipefail
