@@ -1082,5 +1082,18 @@ bool HelloWorld::init() {
     homeMenu->setPosition(Vec2::ZERO);
     home->addChild(homeMenu, 10);
 
+    // Android hardware Back returns from the battle view to the home hub.
+    auto keyboardListener = EventListenerKeyboard::create();
+    keyboardListener->onKeyReleased = [=](EventKeyboard::KeyCode keyCode, Event*) {
+        if (keyCode != EventKeyboard::KeyCode::KEY_BACK &&
+            keyCode != EventKeyboard::KeyCode::KEY_ESCAPE) return;
+        if (!home->isVisible()) {
+            home->setVisible(true);
+        } else {
+            Director::getInstance()->end();
+        }
+    };
+    _eventDispatcher->addEventListenerWithSceneGraphPriority(keyboardListener, this);
+
     return true;
 }
