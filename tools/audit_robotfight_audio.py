@@ -74,7 +74,7 @@ def main() -> None:
     print(rendered)
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
-        args.out.write_text(rendered + "\\n", encoding="utf-8")
+        args.out.write_text(rendered + "\n", encoding="utf-8")
     if problems or not checked:
         raise SystemExit("AUDIO EVENT AUDIT FAILED")
 
