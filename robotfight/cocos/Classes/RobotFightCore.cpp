@@ -140,6 +140,39 @@ int LocalProfile::pilotLevel() { return experience() / 250 + 1; }
 int LocalProfile::experienceIntoLevel() { return experience() % 250; }
 int LocalProfile::experienceToNextLevel() { return 250 - experienceIntoLevel(); }
 
+void LocalProfile::validateSavedData() {
+    auto* save = cocos2d::UserDefault::getInstance();
+    const int safeCoins = std::max(0, std::min(999999999, coins()));
+    const int safeBattles = std::max(0, std::min(999999999, battles()));
+    const int safeWins = std::max(0, std::min(safeBattles, wins()));
+    const int safeLosses = std::max(0, std::min(safeBattles - safeWins, losses()));
+    const int safeExperience = std::max(0, std::min(250000000, experience()));
+
+    save->setIntegerForKey("rf.coins", safeCoins);
+    save->setIntegerForKey("rf.battles", safeBattles);
+    save->setIntegerForKey("rf.wins", safeWins);
+    save->setIntegerForKey("rf.losses", safeLosses);
+    save->setIntegerForKey("rf.pilot.xp", safeExperience);
+
+    int unlocked = std::max(1, std::min(6,
+        save->getIntegerForKey("rf.campaign.unlocked", 1)));
+    for (int stage = 0; stage < 6; ++stage) {
+        if (isStageComplete(stage)) unlocked = std::max(unlocked, std::min(6, stage + 2));
+    }
+    save->setIntegerForKey("rf.campaign.unlocked", unlocked);
+
+    const std::string selected = save->getStringForKey("rf.stage", "scene_11");
+    const char* validStages[] = {"scene_11", "scene_0", "scene_1", "scene_3", "scene_13", "scene_19"};
+    bool valid = false;
+    for (const char* stage : validStages) {
+        if (selected == stage) { valid = true; break; }
+    }
+    if (!valid) save->setStringForKey("rf.stage", "scene_11");
+
+    save->setIntegerForKey("rf.profile.schema", 2);
+    save->flush();
+}
+
 int LocalProfile::unlockedStages() {
     const int saved = cocos2d::UserDefault::getInstance()->getIntegerForKey(
         "rf.campaign.unlocked", 1);
