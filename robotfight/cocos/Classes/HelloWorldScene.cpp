@@ -523,8 +523,10 @@ bool HelloWorld::init() {
             const std::string stageName = stageNames[i];
             const std::string stageId = stageIds[i];
             const bool unlocked = robotfight::LocalProfile::isStageUnlocked(i);
-            auto label = Label::createWithSystemFont(
-                unlocked ? stageName : stageName + "  /  LOCKED", "Arial", 14);
+            const bool completed = robotfight::LocalProfile::isStageComplete(i);
+            const std::string cardTitle = !unlocked ? stageName + "  /  LOCKED" :
+                (completed ? stageName + "  /  CLEARED" : stageName);
+            auto label = Label::createWithSystemFont(cardTitle, "Arial", 14);
             label->setTextColor(unlocked ? Color4B(235, 245, 255, 255) :
                                            Color4B(125, 140, 155, 255));
             auto item = MenuItemLabel::create(label, [=](Ref*) {
@@ -847,8 +849,13 @@ bool HelloWorld::init() {
     stageItem->setPosition(w * 0.43f, h * 0.13f);
     auto profileLabel = Label::createWithSystemFont("PROFILE", "Arial", 17);
     auto profileItem = MenuItemLabel::create(profileLabel, [=](Ref*) {
-        infoPanel("PILOT PROFILE", StringUtils::format("COINS  %d\\nWINS  %d\\nLOSSES  %d",
-            LocalProfile::coins(), LocalProfile::wins(), LocalProfile::losses()));
+        int clearedStages = 0;
+        for (int stage = 0; stage < 6; ++stage)
+            if (LocalProfile::isStageComplete(stage)) ++clearedStages;
+        infoPanel("PILOT PROFILE", StringUtils::format(
+            "COINS  %d\\nWINS  %d\\nLOSSES  %d\\n\\nCAMPAIGN  %d / 6 CLEARED\\nSTAGES UNLOCKED  %d / 6",
+            LocalProfile::coins(), LocalProfile::wins(), LocalProfile::losses(),
+            clearedStages, LocalProfile::unlockedStages()));
     });
     profileItem->setPosition(w * 0.60f, h * 0.13f);
     auto questLabel = Label::createWithSystemFont("QUESTS", "Arial", 17);
