@@ -195,13 +195,28 @@ bool HelloWorld::init() {
     // Restore the last selected campaign arena when the app is reopened.
     const char* campaignStageIds[] = {"scene_11", "scene_0", "scene_1", "scene_3", "scene_13", "scene_19"};
     auto selectedStageIndex = std::make_shared<int>(0);
-    const std::string savedStage = UserDefault::getInstance()->getStringForKey("rf.stage", "scene_11");
+    std::string savedStage = UserDefault::getInstance()->getStringForKey("rf.stage", "scene_11");
+    bool savedStageFound = false;
     for (int i = 0; i < 6; ++i) {
         if (savedStage == campaignStageIds[i]) {
-            *selectedStageIndex = i;
+            savedStageFound = true;
+            if (LocalProfile::isStageUnlocked(i)) {
+                *selectedStageIndex = i;
+            } else {
+                // Never restore a locked arena as the active campaign selection.
+                *selectedStageIndex = 0;
+                savedStage = campaignStageIds[0];
+            }
             break;
         }
     }
+    if (!savedStageFound) {
+        // Recover from stale/corrupt stage IDs by returning to the first arena.
+        *selectedStageIndex = 0;
+        savedStage = campaignStageIds[0];
+    }
+    UserDefault::getInstance()->setStringForKey("rf.stage", savedStage);
+    UserDefault::getInstance()->flush();
     const std::string savedThumbnail = std::string("original/scene_thumbnail_") +
         std::string(campaignStageIds[*selectedStageIndex]).substr(6) + ".png";
     auto arena = Sprite::create(savedThumbnail);
