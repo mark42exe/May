@@ -594,6 +594,16 @@ bool HelloWorld::init() {
         panel->addChild(heading);
         const char* stageIds[] = {"scene_11","scene_0","scene_1","scene_3","scene_13","scene_19"};
         const char* stageNames[] = {"TRAINING","SCRAP YARD","FACTORY","ROOFTOPS","CORE DROP","FINAL PIT"};
+        const std::string savedStage = UserDefault::getInstance()->getStringForKey("rf.stage", "scene_11");
+        std::string savedStageName = stageNames[0];
+        for (int i = 0; i < 6; ++i) {
+            if (savedStage == stageIds[i]) savedStageName = stageNames[i];
+        }
+        auto currentStageLabel = Label::createWithSystemFont(
+            "CURRENT ARENA: " + savedStageName, "Arial-BOLD", 13);
+        currentStageLabel->setPosition(w * 0.5f, h * 0.145f);
+        currentStageLabel->setTextColor(Color4B(110, 220, 255, 255));
+        panel->addChild(currentStageLabel, 3);
         for (int i = 0; i < 6; ++i) {
             const float x = w * (0.20f + (i % 3) * 0.30f);
             const float y = h * (0.62f - (i / 3) * 0.32f);
@@ -613,6 +623,12 @@ bool HelloWorld::init() {
             const std::string stageId = stageIds[i];
             const bool unlocked = robotfight::LocalProfile::isStageUnlocked(i);
             const bool completed = robotfight::LocalProfile::isStageComplete(i);
+            const bool isCurrent = savedStage == stageId;
+            auto currentMarker = Label::createWithSystemFont(isCurrent ? "CURRENT" : "",
+                                                               "Arial-BOLD", 10);
+            currentMarker->setPosition(x, y + h * 0.095f);
+            currentMarker->setTextColor(Color4B(110, 220, 255, 255));
+            panel->addChild(currentMarker, 2);
             const std::string cardTitle = !unlocked ? stageName + "  /  LOCKED" :
                 (completed ? stageName + "  /  CLEARED" : stageName);
             auto label = Label::createWithSystemFont(cardTitle, "Arial", 14);
@@ -624,6 +640,7 @@ bool HelloWorld::init() {
                     return;
                 }
                 *selectedStageIndex = i;
+                currentStageLabel->setString("CURRENT ARENA: " + stageName);
                 UserDefault::getInstance()->setStringForKey("rf.stage", stageId);
                 UserDefault::getInstance()->flush();
                 if (arena) {
