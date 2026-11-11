@@ -184,6 +184,7 @@ bool HelloWorld::init() {
     if (!Scene::init()) return false;
     LocalProfile::validateSavedData();
     auto menuMusicId = std::make_shared<int>(AudioEngine::INVALID_AUDIO_ID);
+    auto battleMusicId = std::make_shared<int>(AudioEngine::INVALID_AUDIO_ID);
     if (UserDefault::getInstance()->getBoolForKey("rf.audio.music", true))
         *menuMusicId = AudioEngine::play2d("original/intro_bgm.wav", true, 0.42f);
 
@@ -708,9 +709,23 @@ bool HelloWorld::init() {
     auto stagesItem = MenuItemLabel::create(stagesLabel, [=](Ref*) { openStages(); });
     stagesItem->setPosition(w * 0.51f, h - 62);
     auto homeLabel = Label::createWithSystemFont("HOME", "Arial", 16);
-    auto homeItem = MenuItemLabel::create(homeLabel, [=](Ref*) {
-        if (*homeRef) (*homeRef)->setVisible(true);
-    });
+    auto returnToHome = [=]() {
+        if (*battleMusicId != AudioEngine::INVALID_AUDIO_ID) {
+            AudioEngine::stop(*battleMusicId);
+            *battleMusicId = AudioEngine::INVALID_AUDIO_ID;
+        }
+        if (UserDefault::getInstance()->getBoolForKey("rf.audio.music", true) &&
+            *menuMusicId == AudioEngine::INVALID_AUDIO_ID) {
+            *menuMusicId = AudioEngine::play2d("original/intro_bgm.wav", true, 0.42f);
+        }
+        if (*homeRef) {
+            (*homeRef)->setVisible(true);
+            (*homeRef)->stopAllActions();
+            (*homeRef)->setScale(0.96f);
+            (*homeRef)->runAction(ScaleTo::create(0.20f, 1.0f));
+        }
+    };
+    auto homeItem = MenuItemLabel::create(homeLabel, [=](Ref*) { returnToHome(); });
     homeItem->setPosition(w * 0.68f, h - 62);
     auto navigation = Menu::create(garageItem, stagesItem, homeItem, nullptr);
     navigation->setPosition(Vec2::ZERO);
@@ -1003,9 +1018,15 @@ bool HelloWorld::init() {
             AudioEngine::play2d("original/sfx_btn_press.ogg");
             AudioEngine::play2d("original/sfx_battle_startBell.ogg");
         }
-        if (*menuMusicId != AudioEngine::INVALID_AUDIO_ID) AudioEngine::stop(*menuMusicId);
+        if (*menuMusicId != AudioEngine::INVALID_AUDIO_ID) {
+            AudioEngine::stop(*menuMusicId);
+            *menuMusicId = AudioEngine::INVALID_AUDIO_ID;
+        }
+        if (*battleMusicId != AudioEngine::INVALID_AUDIO_ID)
+            AudioEngine::stop(*battleMusicId);
+        *battleMusicId = AudioEngine::INVALID_AUDIO_ID;
         if (UserDefault::getInstance()->getBoolForKey("rf.audio.music", true))
-            AudioEngine::play2d("original/bgm_scene_battleFight.wav", true, 0.42f);
+            *battleMusicId = AudioEngine::play2d("original/bgm_scene_battleFight.wav", true, 0.42f);
         home->stopAllActions();
         home->runAction(Sequence::create(
             ScaleTo::create(0.16f, 0.96f),
@@ -1192,10 +1213,7 @@ bool HelloWorld::init() {
                 (*activeModal)->removeFromParent();
                 *activeModal = nullptr;
             } else if (!home->isVisible()) {
-                home->setVisible(true);
-                home->stopAllActions();
-                home->setScale(0.96f);
-                home->runAction(ScaleTo::create(0.20f, 1.0f));
+                returnToHome();
                 *focusIndex = 0;
                 showFocus();
             } else {
