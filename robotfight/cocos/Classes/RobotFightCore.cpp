@@ -3,6 +3,7 @@
 #include "cocos2d.h"
 #include <algorithm>
 #include <numeric>
+#include <cstdio>
 
 namespace robotfight {
 namespace {
@@ -148,8 +149,9 @@ bool LocalProfile::isStageUnlocked(int stageIndex) {
 void LocalProfile::recordStageVictory(int stageIndex) {
     if (stageIndex < 0 || stageIndex >= 6) return;
     auto* save = cocos2d::UserDefault::getInstance();
-    const std::string key = "rf.campaign.stage." + std::to_string(stageIndex) + ".complete";
-    save->setBoolForKey(key.c_str(), true);
+    char key[64];
+    std::snprintf(key, sizeof(key), "rf.campaign.stage.%d.complete", stageIndex);
+    save->setBoolForKey(key, true);
     const int nextUnlocked = std::min(6, std::max(unlockedStages(), stageIndex + 2));
     save->setIntegerForKey("rf.campaign.unlocked", nextUnlocked);
     save->flush();
