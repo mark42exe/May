@@ -149,7 +149,8 @@ jobs:
           else
             printf '\nAPP_STL := c++_static\n' >> "$PROJECT_DIR/proj.android-studio/app/jni/Application.mk"
           fi
-          grep -q '^APP_STL := c++_static
+          grep -q '^APP_STL := c++_static$' "$PROJECT_DIR/proj.android-studio/app/jni/Application.mk"
+          python3 - <<'PY'
           from pathlib import Path
           import os
           root = Path(os.environ["PROJECT_DIR"])
