@@ -398,8 +398,12 @@ jobs:
           grep -q "package: name='com.animocabrands.robotfight.restored'" "$RUNNER_TEMP/apk-badging.txt"
           grep -q "sdkVersion:'21'" "$RUNNER_TEMP/apk-badging.txt"
           grep -q "targetSdkVersion:'24'" "$RUNNER_TEMP/apk-badging.txt"
-          apksigner verify --verbose "$APK"
-          zipalign -c -v 4 "$APK"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          ZIPALIGN="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -n 1)"
+          test -x "$APKSIGNER" || { echo "Android build-tools apksigner executable not found"; exit 1; }
+          test -x "$ZIPALIGN" || { echo "Android build-tools zipalign executable not found"; exit 1; }
+          "$APKSIGNER" verify --verbose "$APK"
+          "$ZIPALIGN" -c -v 4 "$APK"
           python3 - "$APK" <<'PY'
           from zipfile import ZipFile
           import struct, sys
