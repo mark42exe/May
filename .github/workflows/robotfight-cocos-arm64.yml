@@ -93,6 +93,28 @@ jobs:
           print("Verified string.h declarations for allocator memset")
           PY
 
+      - name: Patch legacy Cocos fixed-point conversion for modern Clang
+        run: |
+          set -euo pipefail
+          SOURCE="$PROJECT_DIR/cocos2d/external/android-specific/pvmp3dec/src/pvmp3_alias_reduction.cpp"
+          test -s "$SOURCE"
+          python3 - "$SOURCE" <<'PY'
+          from pathlib import Path
+          import sys
+          path = Path(sys.argv[1])
+          source = path.read_text()
+          old = "(0x7FFFFFFF / (float)18 - 1.0f)"
+          new = "((float)0x7FFFFFFF / 18.0f - 1.0f)"
+          if old in source:
+              source = source.replace(old, new, 1)
+              path.write_text(source)
+          elif new not in source:
+              raise SystemExit("Unexpected pvmp3 fixed-point expression; refusing an unverified patch")
+          if new not in path.read_text():
+              raise SystemExit("Modern-Clang fixed-point conversion patch did not persist")
+          print("Verified explicit float conversion in pvmp3 decoder")
+          PY
+
       - name: Patch legacy Cocos process tracker POSIX declarations
         run: |
           set -euo pipefail
