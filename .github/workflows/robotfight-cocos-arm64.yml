@@ -456,6 +456,7 @@ jobs:
                   raise SystemExit("APK missing recovered original battle scene")
               print("APK verification passed: ARM64 ELF library and original battle scene present")
           PY
+          python3 tools/validate_imported_robotfight_resources.py "$PROJECT_DIR/Resources/original" --apk "$APK"
 
       - name: Verify APK archive, signature, SDK levels, and native ELF alignment
         run: |
