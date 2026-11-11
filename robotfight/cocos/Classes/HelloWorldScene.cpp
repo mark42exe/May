@@ -687,6 +687,7 @@ bool HelloWorld::init() {
                 panel->removeFromParent();
             });
             item->setPosition(x, y - h * 0.055f);
+            item->setContentSize(Size(w * 0.25f, h * 0.12f));
             auto menu = Menu::create(item, nullptr);
             menu->setPosition(Vec2::ZERO);
             panel->addChild(menu);
@@ -713,6 +714,9 @@ bool HelloWorld::init() {
     homeItem->setPosition(w * 0.68f, h - 62);
     auto navigation = Menu::create(garageItem, stagesItem, homeItem, nullptr);
     navigation->setPosition(Vec2::ZERO);
+    garageItem->setContentSize(Size(w * 0.16f, h * 0.07f));
+    stagesItem->setContentSize(Size(w * 0.16f, h * 0.07f));
+    homeItem->setContentSize(Size(w * 0.16f, h * 0.07f));
     addChild(navigation, 10);
 
     auto coins = Label::createWithSystemFont("", "Arial", 17);
