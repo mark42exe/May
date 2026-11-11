@@ -9,6 +9,7 @@ known.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import struct
@@ -82,7 +83,9 @@ def inspect(path: Path) -> dict:
     ]
     return {
         "file": path.name,
+        "relative_path": str(path),
         "size": len(data),
+        "sha256": hashlib.sha256(data).hexdigest(),
         "magic": data[4:8].decode("ascii", "replace") if len(data) >= 8 else "",
         "prefix_u32": struct.unpack_from("<I", data, 0)[0] if len(data) >= 4 else None,
         "header_u16": list(struct.unpack_from("<4H", data, 8)) if len(data) >= 16 else [],
@@ -101,10 +104,29 @@ def main() -> None:
     args = ap.parse_args()
     files = sorted(args.root.rglob("*.ccb"))
     scenes = [inspect(p) for p in files]
+    resource_usage = Counter(
+        resource for scene in scenes for resource in scene["resource_references"]
+    )
+    node_type_totals = Counter()
+    for scene in scenes:
+        node_type_totals.update(scene["node_type_counts"])
+    duplicate_hashes = {}
+    for scene in scenes:
+        duplicate_hashes.setdefault(scene["sha256"], []).append(scene["file"])
+    duplicate_hashes = {
+        digest: names for digest, names in duplicate_hashes.items() if len(names) > 1
+    }
     report = {
         "format": "RCCB diagnostic inventory; not a decoded scene graph",
         "scene_count": len(scenes),
+        "total_scene_bytes": sum(scene["size"] for scene in scenes),
         "magic_counts": dict(Counter(s["magic"] for s in scenes)),
+        "aggregate_node_type_counts": dict(node_type_totals.most_common()),
+        "most_referenced_resources": [
+            {"resource": name, "scene_reference_count": count}
+            for name, count in resource_usage.most_common(200)
+        ],
+        "duplicate_scene_contents": duplicate_hashes,
         "scenes": scenes,
     }
     rendered = json.dumps(report, indent=2, ensure_ascii=False)
