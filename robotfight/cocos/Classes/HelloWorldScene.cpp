@@ -407,6 +407,8 @@ bool HelloWorld::init() {
         auto panel = Node::create();
 
         *activeModal = panel;
+        panel->setScale(0.96f);
+        panel->runAction(ScaleTo::create(0.18f, 1.0f));
         addChild(panel, 300);
         if (auto backdrop = Sprite::create("original/editor_BG_tablet_01.png")) {
             const auto size = backdrop->getContentSize();
@@ -964,6 +966,8 @@ bool HelloWorld::init() {
         auto panel = Node::create();
 
         *activeModal = panel;
+        panel->setScale(0.96f);
+        panel->runAction(ScaleTo::create(0.18f, 1.0f));
         addChild(panel, 250);
         auto dim = DrawNode::create();
         dim->drawSolidRect(Vec2(0, 0), Vec2(w, h), Color4F(0.01f, 0.02f, 0.04f, 0.94f));
@@ -996,7 +1000,11 @@ bool HelloWorld::init() {
         if (*menuMusicId != AudioEngine::INVALID_AUDIO_ID) AudioEngine::stop(*menuMusicId);
         if (UserDefault::getInstance()->getBoolForKey("rf.audio.music", true))
             AudioEngine::play2d("original/bgm_scene_battleFight.wav", true, 0.42f);
-        home->setVisible(false);
+        home->stopAllActions();
+        home->runAction(Sequence::create(
+            ScaleTo::create(0.16f, 0.96f),
+            CallFunc::create([home]() { home->setVisible(false); }),
+            nullptr));
     });
     fightItem->setPosition(w * 0.73f, h * 0.43f);
     auto labLabel = Label::createWithSystemFont("ROBOT LAB", "Arial", 20);
@@ -1078,6 +1086,8 @@ bool HelloWorld::init() {
         auto panel = Node::create();
 
         *activeModal = panel;
+        panel->setScale(0.96f);
+        panel->runAction(ScaleTo::create(0.18f, 1.0f));
         addChild(panel, 260);
         auto shade = DrawNode::create();
         shade->drawSolidRect(Vec2(0, 0), Vec2(w, h), Color4F(0.01f, 0.02f, 0.04f, 0.96f));
@@ -1128,7 +1138,15 @@ bool HelloWorld::init() {
     settingsItem->setPosition(w * 0.93f, h * 0.13f);
     auto homeMenu = Menu::create(fightItem, labItem, stageItem, profileItem, questItem, settingsItem, nullptr);
     homeMenu->setPosition(Vec2::ZERO);
+    // Larger invisible hit areas make the recovered-art buttons easier to use on touch screens.
+    for (auto* item : std::array<MenuItem*, 6>{{
+        fightItem, labItem, stageItem, profileItem, questItem, settingsItem
+    }}) {
+        if (item) item->setContentSize(Size(w * 0.15f, h * 0.075f));
+    }
     home->addChild(homeMenu, 10);
+    home->setScale(0.96f);
+    home->runAction(ScaleTo::create(0.24f, 1.0f));
 
     // D-pad / keyboard navigation for the primary native menus.
     // This focuses navigation and profile controls only; it does not alter game rules.
@@ -1162,6 +1180,9 @@ bool HelloWorld::init() {
                 *activeModal = nullptr;
             } else if (!home->isVisible()) {
                 home->setVisible(true);
+                home->stopAllActions();
+                home->setScale(0.96f);
+                home->runAction(ScaleTo::create(0.20f, 1.0f));
                 *focusIndex = 0;
                 showFocus();
             } else {
