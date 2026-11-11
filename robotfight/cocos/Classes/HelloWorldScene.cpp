@@ -536,6 +536,9 @@ bool HelloWorld::init() {
         const std::array<const char*, 6> partCategories = {{
             "Base", "Core", "Head", "BackArm", "FrontArm", "Battery"
         }};
+        const std::array<const char*, 6> partPrefixes = {{
+            "base_", "core_", "head_", "arm_b_", "arm_f_", "battery_1_"
+        }};
         const std::array<const char*, 6> presetKeys = {{
             "rf.loadout.primary.base", "rf.loadout.primary.core",
             "rf.loadout.primary.head", "rf.loadout.primary.back",
@@ -555,9 +558,25 @@ bool HelloWorld::init() {
         auto loadPreset = MenuItemLabel::create(loadPresetLabel, [=](Ref*) {
             auto* defaults = UserDefault::getInstance();
             bool loadedAny = false;
+            int skippedInvalid = 0;
             for (int i = 0; i < 6; ++i) {
                 const std::string value = defaults->getStringForKey(presetKeys[i], "");
                 if (value.empty()) continue;
+                const auto category = garageCatalog.find(partCategories[i]);
+                if (category == garageCatalog.end()) { ++skippedInvalid; continue; }
+                const auto entries = category->second.asValueMap();
+                if (entries.find(value) == entries.end()) { ++skippedInvalid; continue; }
+                std::string textureId = value;
+                if (i == 5) {
+                    const auto separator = value.find_last_of('_');
+                    textureId = separator == std::string::npos ? value : value.substr(separator + 1);
+                }
+                const std::string imagePath = std::string("original/") + partPrefixes[i] +
+                    textureId + ".png";
+                if (!FileUtils::getInstance()->isFileExist(imagePath)) {
+                    ++skippedInvalid;
+                    continue;
+                }
                 defaults->setStringForKey(partSaveKeys[i], value);
                 if (currentLabels[static_cast<std::size_t>(i)])
                     currentLabels[static_cast<std::size_t>(i)]->setString(
@@ -574,9 +593,13 @@ bool HelloWorld::init() {
                 *garageRobot = makeRobotView(w * 0.84f, h * 0.48f, false,
                     readPlayerPartIds(), readPlayerBatteryId());
                 panel->addChild(*garageRobot, 5);
-                loadPresetLabel->setString("LOADOUT LOADED");
+                loadPresetLabel->setString(skippedInvalid > 0
+                    ? StringUtils::format("LOADED  /  %d INVALID PARTS SKIPPED", skippedInvalid)
+                    : "LOADOUT LOADED");
             } else {
-                loadPresetLabel->setString("NO SAVED LOADOUT");
+                loadPresetLabel->setString(skippedInvalid > 0
+                    ? "SAVED LOADOUT INVALID"
+                    : "NO SAVED LOADOUT");
             }
         });
         loadPreset->setPosition(w * 0.69f, h * 0.14f);
