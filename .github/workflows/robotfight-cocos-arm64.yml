@@ -25,7 +25,9 @@ permissions:
 
 jobs:
   cocos-arm64:
-    runs-on: ubuntu-latest
+    # Ubuntu 22.04 retains the ncurses5/tinfo5 ABI required by NDK r16b.
+    # Newer runner images removed these legacy runtime libraries.
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
@@ -325,15 +327,6 @@ jobs:
           name: RobotFight-Stage-Gallery-Audit
           path: ${{ runner.temp }}/stage_gallery_audit.json
           if-no-files-found: error
-
-      - name: Install compatibility libraries for legacy NDK r16b
-        run: |
-          set -euo pipefail
-          # Use the runner's configured Ubuntu package mirrors rather than
-          # hard-coding archive.ubuntu.com package URLs.
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libncurses5 libtinfo5
-          ldconfig -p | grep -E 'libncurses.so.5|libtinfo.so.5'
 
       - name: Compile original Cocos 3.15.1 native library for ARM64 only (no APK)
         run: |
