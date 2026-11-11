@@ -131,8 +131,19 @@ def main() -> None:
     for scene in scenes:
         for resource in set(scene["resource_references"]):
             resource_to_scenes.setdefault(resource, []).append(scene["file"])
-        for item in set(scene["identifier_candidates"]):
-            identifier_to_scenes.setdefault(item, []).append(scene["file"])
+        # Candidates are structured records, not hashable strings.
+        # Index semantic value + encoding; ignore repeated offsets within a scene.
+        identifiers = set()
+        for candidate in scene["identifier_candidates"]:
+            if isinstance(candidate, dict):
+                value = candidate.get("value")
+                encoding = candidate.get("encoding", "unknown")
+                if isinstance(value, str) and value:
+                    identifiers.add(f"{encoding}:{value}")
+            elif isinstance(candidate, str) and candidate:
+                identifiers.add(candidate)
+        for identifier in identifiers:
+            identifier_to_scenes.setdefault(identifier, []).append(scene["file"])
     shared_resources = {
         key: value for key, value in sorted(resource_to_scenes.items())
         if len(value) > 1
