@@ -729,6 +729,17 @@ bool HelloWorld::init() {
                 Color4F(0.12f, 0.72f, 0.92f, 1.0f));
         panel->addChild(campaignTrack, 2);
 
+        // Create dossier nodes before menu callbacks capture them.
+        auto detailPreview = Sprite::create(std::string("original/scene_thumbnail_") +
+            std::string(stageIds[initialIndex]).substr(6) + ".png");
+        if (!detailPreview) detailPreview = Sprite::create("original/scene_thumbnail_11.png");
+        auto detailTitle = Label::createWithSystemFont(stageNames[initialIndex], "Arial-BOLD", 20);
+        auto detailNote = Label::createWithSystemFont(stageNotes[initialIndex], "Arial", 12);
+        const bool initialComplete = robotfight::LocalProfile::isStageComplete(initialIndex);
+        auto detailStatus = Label::createWithSystemFont(
+            initialComplete ? "CAMPAIGN STATUS: CLEARED" : "CAMPAIGN STATUS: NOT CLEARED",
+            "Arial-BOLD", 11);
+
         // Left side: campaign route. Right side: a larger live arena dossier.
         std::vector<Label*> selectionMarkers;
         for (int i = 0; i < 6; ++i) {
@@ -798,27 +809,18 @@ bool HelloWorld::init() {
             frame->setScale(0.34f);
             panel->addChild(frame, 0);
         }
-        auto detailPreview = Sprite::create(std::string("original/scene_thumbnail_") +
-            std::string(stageIds[initialIndex]).substr(6) + ".png");
-        if (!detailPreview) detailPreview = Sprite::create("original/scene_thumbnail_11.png");
         if (detailPreview) {
             detailPreview->setPosition(w * 0.75f, h * 0.57f);
             detailPreview->setScale(std::min(w * 0.31f / detailPreview->getContentSize().width,
                                              h * 0.30f / detailPreview->getContentSize().height));
             panel->addChild(detailPreview, 1);
         }
-        auto detailTitle = Label::createWithSystemFont(stageNames[initialIndex], "Arial-BOLD", 20);
         detailTitle->setPosition(w * 0.75f, h * 0.37f);
         detailTitle->setTextColor(Color4B(110,220,255,255));
         panel->addChild(detailTitle, 3);
-        auto detailNote = Label::createWithSystemFont(stageNotes[initialIndex], "Arial", 12);
         detailNote->setPosition(w * 0.75f, h * 0.33f);
         detailNote->setTextColor(Color4B(215,225,235,255));
         panel->addChild(detailNote, 3);
-        const bool initialComplete = robotfight::LocalProfile::isStageComplete(initialIndex);
-        auto detailStatus = Label::createWithSystemFont(
-            initialComplete ? "CAMPAIGN STATUS: CLEARED" : "CAMPAIGN STATUS: NOT CLEARED",
-            "Arial-BOLD", 11);
         detailStatus->setPosition(w * 0.75f, h * 0.29f);
         detailStatus->setTextColor(initialComplete ? Color4B(120,235,165,255) :
                                                     Color4B(110,220,255,255));
