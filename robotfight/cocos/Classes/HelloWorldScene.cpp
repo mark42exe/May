@@ -598,6 +598,8 @@ bool HelloWorld::init() {
         auto panel = Node::create();
 
         *activeModal = panel;
+        panel->setScale(0.96f);
+        panel->runAction(ScaleTo::create(0.18f, 1.0f));
         addChild(panel, 300);
         if (auto backdrop = Sprite::create("original/editor_BG_tablet_02.png")) {
             const auto size = backdrop->getContentSize();
