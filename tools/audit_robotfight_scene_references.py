@@ -115,7 +115,7 @@ def main() -> None:
     print(rendered)
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
-        args.out.write_text(rendered + "\\n", encoding="utf-8")
+        args.out.write_text(rendered + "\n", encoding="utf-8")
     if args.strict and (missing or invalid_references):
         raise SystemExit("RCCB SCENE DEPENDENCY AUDIT FAILED")
 
