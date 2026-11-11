@@ -817,6 +817,16 @@ bool HelloWorld::init() {
     homeLevel->setPosition(w * 0.095f, h * 0.775f);
     homeLevel->setTextColor(Color4B(255, 215, 115, 255));
     home->addChild(homeLevel, 4);
+    auto xpBar = DrawNode::create();
+    const Vec2 xpBarOrigin(w * 0.095f, h * 0.755f);
+    const float xpBarWidth = w * 0.19f;
+    xpBar->drawSolidRect(xpBarOrigin, xpBarOrigin + Vec2(xpBarWidth, 7.0f),
+                         Color4F(0.08f, 0.13f, 0.19f, 0.95f));
+    const float xpFill = xpBarWidth * LocalProfile::experienceIntoLevel() / 250.0f;
+    if (xpFill > 0.0f)
+        xpBar->drawSolidRect(xpBarOrigin, xpBarOrigin + Vec2(xpFill, 7.0f),
+                             Color4F(0.20f, 0.78f, 0.95f, 1.0f));
+    home->addChild(xpBar, 4);
     auto homeTier = Label::createWithSystemFont(
         StringUtils::format("CAMPAIGN  %d / 6", robotfight::LocalProfile::unlockedStages()),
         "Arial-BOLD", 17);
