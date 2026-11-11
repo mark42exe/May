@@ -426,6 +426,18 @@ bool HelloWorld::init() {
             RemoveSelf::create(), nullptr));
     };
 
+    // Use one consistent entrance transition for every recovered-style modal.
+    auto openModalAnimation = [](Node* panel) {
+        if (!panel) return;
+        panel->stopAllActions();
+        panel->setCascadeOpacityEnabled(true);
+        panel->setOpacity(0);
+        panel->setScale(0.94f);
+        panel->runAction(Spawn::create(
+            FadeIn::create(0.20f), EaseBackOut::create(ScaleTo::create(0.24f, 1.0f)),
+            nullptr));
+    };
+
     // Garage: cycle through original recovered part identifiers and persist each choice.
     auto openGarage = [=]() {
         playOriginalSoundEvent("press");
@@ -433,8 +445,7 @@ bool HelloWorld::init() {
         modalFocusItems->clear();
         *modalFocusIndex = 0;
         *activeModal = panel;
-        panel->setScale(0.96f);
-        panel->runAction(ScaleTo::create(0.18f, 1.0f));
+        openModalAnimation(panel);
         addVisibleChild(panel, 300);
         if (auto backdrop = Sprite::create("original/editor_BG_tablet_01.png")) {
             const auto size = backdrop->getContentSize();
@@ -658,8 +669,7 @@ bool HelloWorld::init() {
         modalFocusItems->clear();
         *modalFocusIndex = 0;
         *activeModal = panel;
-        panel->setScale(0.96f);
-        panel->runAction(ScaleTo::create(0.18f, 1.0f));
+        openModalAnimation(panel);
         addVisibleChild(panel, 300);
         if (auto backdrop = Sprite::create("original/editor_BG_tablet_02.png")) {
             const auto size = backdrop->getContentSize();
