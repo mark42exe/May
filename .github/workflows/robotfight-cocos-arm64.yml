@@ -13,6 +13,8 @@ on:
       - "tools/audit_robotfight_scene_references.py"
       - "tools/reconcile_robotfight_scene_references.py"
       - "tools/audit_rccb_asset_families.py"
+      - "tools/audit_rccb_record_spans.py"
+      - "tools/test_audit_rccb_record_spans.py"
       - "tools/build_original_asset_manifest.py"
       - "tools/test_build_original_asset_manifest.py"
       - "tools/test_audit_rccb_asset_families.py"
@@ -530,6 +532,23 @@ jobs:
               "inventory_ascii_string_unmatched_count",
               "additional_short_or_unindexed_string_count")}, indent=2))
           PY
+
+      - name: Unit-test RCCB candidate record span audit
+        run: |
+          set -euo pipefail
+          python3 tools/test_audit_rccb_record_spans.py
+
+      - name: Audit RCCB candidate record spans against decoded strings
+        run: |
+          set -euo pipefail
+          python3 tools/audit_rccb_record_spans.py "$RUNNER_TEMP/rccb_binary_inspection.json" "$RUNNER_TEMP/rccb-string-layer.json" --out "$RUNNER_TEMP/rccb_record_span_audit.json"
+
+      - name: Upload RCCB candidate record span audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-RCCB-Record-Span-Audit
+          path: ${{ runner.temp }}/rccb_record_span_audit.json
+          if-no-files-found: error
 
       - name: Upload RCCB token-to-record correlation report
         uses: actions/upload-artifact@v4
