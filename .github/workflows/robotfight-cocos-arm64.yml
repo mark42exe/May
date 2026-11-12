@@ -382,6 +382,19 @@ jobs:
         run: |
           python3 tools/reconcile_robotfight_scene_references.py "$PROJECT_DIR/Resources/original" "$RUNNER_TEMP/scene_reference_audit.json" --out "$RUNNER_TEMP/scene_reference_candidates.json"
 
+      - name: Validate reconciliation report is strict JSON
+        run: |
+          python3 - "$RUNNER_TEMP/scene_reference_candidates.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          report = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          if report.get("automatic_repairs") != 0:
+              raise SystemExit("Candidate audit must remain report-only")
+          if report.get("missing_reference_count") != len(report.get("records", [])):
+              raise SystemExit("Candidate audit count does not match its records")
+          print("Strict JSON report validated:", report["missing_reference_count"], "missing references")
+          PY
+
       - name: Upload RCCB missing asset candidate report
         uses: actions/upload-artifact@v4
         with:
