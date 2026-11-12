@@ -13,6 +13,8 @@ on:
       - "tools/audit_robotfight_scene_references.py"
       - "tools/reconcile_robotfight_scene_references.py"
       - "tools/audit_rccb_asset_families.py"
+      - "tools/build_original_asset_manifest.py"
+      - "tools/test_build_original_asset_manifest.py"
       - "tools/test_audit_rccb_asset_families.py"
       - "tools/audit_robotfight_audio.py"
       - "tools/audit_robotfight_animations.py"
@@ -336,6 +338,29 @@ jobs:
           print("Verified original resource import:", files, "files")
           print("Image conversion counts:", manifest["counts"])
           PY
+
+      - name: Test and build complete original asset integrity manifest
+        run: |
+          set -euo pipefail
+          python3 tools/test_build_original_asset_manifest.py
+          python3 tools/build_original_asset_manifest.py "$PROJECT_DIR/Resources/original" --output "$RUNNER_TEMP/original_asset_integrity_manifest.json"
+          python3 - "$RUNNER_TEMP/original_asset_integrity_manifest.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          report = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          if report.get("file_count", 0) < 3000:
+              raise SystemExit("Original asset integrity manifest is incomplete")
+          if report.get("total_bytes", 0) <= 0:
+              raise SystemExit("Original asset integrity manifest has no payload bytes")
+          print("Verified immutable asset inventory:", report["file_count"], "files;", report["total_bytes"], "bytes")
+          PY
+
+      - name: Upload original asset integrity manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-Original-Asset-Integrity-Manifest
+          path: ${{ runner.temp }}/original_asset_integrity_manifest.json
+          if-no-files-found: error
 
       - name: Preflight all imported original images and critical data
         run: |
