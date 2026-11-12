@@ -451,7 +451,7 @@ jobs:
       - name: Decode and validate RCCB length-prefixed string layer
         run: |
           set -euo pipefail
-          python3 tools/decode_rccb_strings.py "$RUNNER_TEMP/rf-unpacked/RobotFight_Offline_Rebuild_Starter/app/src/main/assets/robotfight_original/art" "$RUNNER_TEMP/rccb-inventory.json" --output "$RUNNER_TEMP/rccb-string-layer.json"
+          python3 tools/decode_rccb_strings.py "$PROJECT_DIR/Resources/original" "$RUNNER_TEMP/rccb_binary_inspection.json" --output "$RUNNER_TEMP/rccb-string-layer.json"
           python3 - "$RUNNER_TEMP/rccb-string-layer.json" <<'PY'
           import json, sys
           from pathlib import Path
