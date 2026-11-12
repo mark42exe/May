@@ -78,7 +78,7 @@ def main() -> None:
         "records": records,
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(report, indent=2) + "\\n", encoding="utf-8")
+    args.out.write_text(json.dumps(report, indent=2) + chr(10), encoding="utf-8")
     print(json.dumps({k: v for k, v in report.items() if k != "records"}, indent=2))
 
 
