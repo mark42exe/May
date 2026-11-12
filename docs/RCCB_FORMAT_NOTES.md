@@ -97,3 +97,25 @@ repeatable entry points for the next parser stage. It does **not** yet establish
 the binary grammar for each record, the node parent/child graph, property types,
 or animation timelines. Runtime scene reconstruction is still blocked on those
 decoders.
+
+
+## Validated string-layer decoder (2026-11-12)
+
+A separate decoder now tests the repeated RCCB string token pattern across the
+entire recovered scene set. The observed token layout is:
+
+- 4-byte little-endian byte length;
+- exactly that many printable ASCII bytes;
+- a NUL terminator immediately after the payload.
+
+The decoder verifies each scene's byte length and SHA-256 against the structural
+inventory before scanning. On the recovered 138-scene bundle it found 8,565
+candidate tokens. Of these, 8,372 exactly match an ASCII string and byte offset
+already reported independently by the original inspector. It also found 193
+short or previously unindexed strings. Another 665 inspector strings do not
+match this exact token layout and are intentionally left unresolved.
+
+This validates one reusable layer of the RCCB encoding. It does not decode
+node records, property types, parent-child relationships, timelines, or runtime
+callbacks. The output preserves byte offsets and raw string values so later
+record decoding can use them without guessing.
