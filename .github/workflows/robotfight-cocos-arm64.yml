@@ -15,7 +15,8 @@ on:
       - "tools/audit_robotfight_audio.py"
       - "tools/audit_robotfight_animations.py"
       - "tools/inspect_rccb.py"
-      - "tools/validate_rccb_inventory.py"\n      - "tools/analyze_rccb_records.py"
+      - "tools/validate_rccb_inventory.py"
+      - "tools/analyze_rccb_records.py"
       - ".github/workflows/robotfight-cocos-arm64.yml"
 
 concurrency:
