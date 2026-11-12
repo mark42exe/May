@@ -299,6 +299,8 @@ jobs:
                   raise SystemExit(f"Unexpected original asset count: {data.get('count')}")
               print("Verified recovered original archive:", data["count"], "entries")
           PY
+          unzip -p "$ORIGINAL_APK" assets/robotfight_original/art/_archive_manifest.json > "$RUNNER_TEMP/source_asset_archive_manifest.json"
+          python3 -c 'import json,sys; from pathlib import Path; m=json.loads(Path(sys.argv[1]).read_text()); assert m.get("count")==len(m.get("files",[])); print("Validated original source manifest:",m["count"],"entries")' "$RUNNER_TEMP/source_asset_archive_manifest.json"
           echo "ORIGINAL_APK=$ORIGINAL_APK" >> "$GITHUB_ENV"
 
       - name: Import complete original Toy Attack resources
@@ -380,7 +382,7 @@ jobs:
 
       - name: Reconcile unresolved RCCB references against recovered asset filenames
         run: |
-          python3 tools/reconcile_robotfight_scene_references.py "$PROJECT_DIR/Resources/original" "$RUNNER_TEMP/scene_reference_audit.json" --out "$RUNNER_TEMP/scene_reference_candidates.json"
+          python3 tools/reconcile_robotfight_scene_references.py "$PROJECT_DIR/Resources/original" "$RUNNER_TEMP/scene_reference_audit.json" --source-manifest "$RUNNER_TEMP/source_asset_archive_manifest.json" --out "$RUNNER_TEMP/scene_reference_candidates.json"
 
       - name: Validate reconciliation report is strict JSON
         run: |
@@ -392,7 +394,11 @@ jobs:
               raise SystemExit("Candidate audit must remain report-only")
           if report.get("missing_reference_count") != len(report.get("records", [])):
               raise SystemExit("Candidate audit count does not match its records")
-          print("Strict JSON report validated:", report["missing_reference_count"], "missing references")
+          if not report.get("source_manifest_checked"):
+              raise SystemExit("Original source archive manifest was not checked")
+          if report.get("source_archive_present_count", -1) + report.get("source_archive_absent_count", -1) != report["missing_reference_count"]:
+              raise SystemExit("Source archive presence counts do not cover all missing references")
+          print("Strict JSON report validated:", report["missing_reference_count"], "missing references;", report["source_archive_absent_count"], "absent from original source archive")
           PY
 
       - name: Upload RCCB missing asset candidate report
