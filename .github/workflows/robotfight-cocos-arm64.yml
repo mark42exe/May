@@ -15,7 +15,7 @@ on:
       - "tools/audit_robotfight_audio.py"
       - "tools/audit_robotfight_animations.py"
       - "tools/inspect_rccb.py"
-      - "tools/validate_rccb_inventory.py"
+      - "tools/validate_rccb_inventory.py"\n      - "tools/analyze_rccb_records.py"
       - ".github/workflows/robotfight-cocos-arm64.yml"
 
 concurrency:
@@ -426,6 +426,17 @@ jobs:
         with:
           name: RobotFight-RCCB-Binary-Inspection
           path: ${{ runner.temp }}/rccb_binary_inspection.json
+          if-no-files-found: error
+
+      - name: Analyze bounded RCCB candidate record bytes
+        run: |
+          python3 tools/analyze_rccb_records.py "$PROJECT_DIR/Resources/original" "$RUNNER_TEMP/rccb_binary_inspection.json" --output "$RUNNER_TEMP/rccb_record_samples.json"
+
+      - name: Upload RCCB candidate record samples
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-RCCB-Record-Samples
+          path: ${{ runner.temp }}/rccb_record_samples.json
           if-no-files-found: error
 
       - name: Upload arena gallery asset audit
