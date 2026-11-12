@@ -448,6 +448,11 @@ jobs:
           path: ${{ runner.temp }}/stage_gallery_audit.json
           if-no-files-found: error
 
+      - name: Unit-test RCCB string decoder
+        run: |
+          set -euo pipefail
+          python3 tools/test_decode_rccb_strings.py
+
       - name: Decode and validate RCCB length-prefixed string layer
         run: |
           set -euo pipefail
