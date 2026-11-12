@@ -20,6 +20,8 @@ on:
       - "tools/decode_rccb_strings.py"
       - "tools/correlate_rccb_records.py"
       - "tools/test_correlate_rccb_records.py"
+      - "tools/correlate_rccb_strings_to_records.py"
+      - "tools/test_correlate_rccb_strings_to_records.py"
       - ".github/workflows/robotfight-cocos-arm64.yml"
 
 concurrency:
@@ -460,10 +462,16 @@ jobs:
           set -euo pipefail
           python3 tools/test_correlate_rccb_records.py
 
+      - name: Unit-test RCCB string-to-record correlation
+        run: |
+          set -euo pipefail
+          python3 tools/test_correlate_rccb_strings_to_records.py
+
       - name: Decode and validate RCCB length-prefixed string layer
         run: |
           set -euo pipefail
           python3 tools/decode_rccb_strings.py "$PROJECT_DIR/Resources/original" "$RUNNER_TEMP/rccb_binary_inspection.json" --output "$RUNNER_TEMP/rccb-string-layer.json"
+          python3 tools/correlate_rccb_strings_to_records.py "$RUNNER_TEMP/rccb_record_samples.json" "$RUNNER_TEMP/rccb-string-layer.json" --output "$RUNNER_TEMP/rccb-token-record-correlation.json"
           python3 - "$RUNNER_TEMP/rccb-string-layer.json" <<'PY'
           import json, sys
           from pathlib import Path
@@ -479,6 +487,13 @@ jobs:
               "inventory_ascii_string_unmatched_count",
               "additional_short_or_unindexed_string_count")}, indent=2))
           PY
+
+      - name: Upload RCCB token-to-record correlation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-RCCB-Token-Record-Correlation
+          path: ${{ runner.temp }}/rccb-token-record-correlation.json
+          if-no-files-found: error
 
       - name: Upload validated RCCB string-layer report
         uses: actions/upload-artifact@v4
