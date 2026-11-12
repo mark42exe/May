@@ -31,6 +31,25 @@ class CandidateWordPatternTests(unittest.TestCase):
             self.assertEqual(report["relative_word_offsets"][0]["kind_counts"]["small_integer"], 1)
             self.assertEqual(report["relative_word_offsets"][1]["kind_counts"]["float_candidate"], 1)
 
+    def test_reports_repeated_raw_signatures_without_assigning_semantics(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            data = bytearray(160)
+            signature = bytes.fromhex("0100000003030000020000000000003f")
+            data[16:32] = signature
+            data[80:96] = signature
+            (root / "A.ccb").write_bytes(data)
+            inventory = {"scenes": [{
+                "file": "A.ccb", "size": len(data),
+                "candidate_offset_tables": [{"offsets": [16, 80, 4]}],
+            }]}
+            report = build_report(inventory, root, 16)
+            matches = [x for x in report["repeated_16_byte_signatures"]
+                       if x["relative_offset"] == 0 and x["raw_16_byte_signature"] == signature.hex()]
+            self.assertEqual(len(matches), 1)
+            self.assertEqual(matches[0]["occurrences"], 2)
+            self.assertEqual(len(matches[0]["examples"]), 2)
+
     def test_rejects_out_of_bounds_candidate_window(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
