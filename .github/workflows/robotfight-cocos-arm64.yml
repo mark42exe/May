@@ -11,6 +11,7 @@ on:
       - "tools/validate_imported_robotfight_resources.py"
       - "tools/stage_recovered_robotfight_scenes.py"
       - "tools/audit_robotfight_scene_references.py"
+      - "tools/reconcile_robotfight_scene_references.py"
       - "tools/audit_robotfight_audio.py"
       - "tools/audit_robotfight_animations.py"
       - "tools/inspect_rccb.py"
@@ -375,6 +376,17 @@ jobs:
         with:
           name: RobotFight-RCCB-Scene-Dependency-Audit
           path: ${{ runner.temp }}/scene_reference_audit.json
+          if-no-files-found: error
+
+      - name: Reconcile unresolved RCCB references against recovered asset filenames
+        run: |
+          python3 tools/reconcile_robotfight_scene_references.py "$PROJECT_DIR/Resources/original" "$RUNNER_TEMP/scene_reference_audit.json" --out "$RUNNER_TEMP/scene_reference_candidates.json"
+
+      - name: Upload RCCB missing asset candidate report
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-RCCB-Missing-Asset-Candidates
+          path: ${{ runner.temp }}/scene_reference_candidates.json
           if-no-files-found: error
 
       - name: Inspect original RCCB binary strings and candidate record offsets
