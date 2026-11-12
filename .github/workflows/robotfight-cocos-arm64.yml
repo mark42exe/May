@@ -30,6 +30,8 @@ on:
       - "tools/test_correlate_rccb_strings_to_records.py"
       - "tools/audit_rccb_candidate_word_patterns.py"
       - "tools/test_audit_rccb_candidate_word_patterns.py"
+      - "tools/correlate_rccb_token_boundaries.py"
+      - "tools/test_correlate_rccb_token_boundaries.py"
       - ".github/workflows/robotfight-cocos-arm64.yml"
 
 concurrency:
@@ -571,6 +573,33 @@ jobs:
               raise SystemExit("RCCB candidate word survey has missing word offsets")
           print("Validated RCCB word-pattern survey:", report["candidate_count"], "candidate windows")
           PY
+
+      - name: Unit-test RCCB token-boundary correlation
+        run: |
+          set -euo pipefail
+          python3 tools/test_correlate_rccb_token_boundaries.py
+
+      - name: Correlate RCCB candidate offsets with string-token boundaries
+        run: |
+          set -euo pipefail
+          python3 tools/correlate_rccb_token_boundaries.py "$RUNNER_TEMP/rccb_record_samples.json" "$RUNNER_TEMP/rccb-string-layer.json" --out "$RUNNER_TEMP/rccb_token_boundary_correlation.json"
+          python3 - "$RUNNER_TEMP/rccb_token_boundary_correlation.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          report = json.loads(Path(sys.argv[1]).read_text())
+          if report["scene_count"] != 138 or report["sample_count"] < 800:
+              raise SystemExit("RCCB token-boundary correlation coverage is incomplete")
+          if report["records_with_tokens"] == 0:
+              raise SystemExit("No candidate records correlated with validated string tokens")
+          print("Validated token-boundary correlation:", report["records_with_tokens"], "records with tokens")
+          PY
+
+      - name: Upload RCCB token-boundary correlation
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-RCCB-Token-Boundary-Correlation
+          path: ${{ runner.temp }}/rccb_token_boundary_correlation.json
+          if-no-files-found: error
 
       - name: Upload RCCB candidate word-pattern survey
         uses: actions/upload-artifact@v4
