@@ -41,6 +41,8 @@ def main() -> None:
     parser.add_argument("asset_root", type=Path)
     parser.add_argument("scene_audit", type=Path)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--source-manifest", type=Path,
+                        help="original DCA manifest from the source APK; distinguishes absent source assets from import losses")
     args = parser.parse_args()
 
     root = args.asset_root.resolve()
@@ -52,6 +54,17 @@ def main() -> None:
         raise SystemExit("Scene audit has no missing_references list")
 
     index = build_index(root)
+    source_names: set[str] | None = None
+    if args.source_manifest:
+        source_manifest = json.loads(args.source_manifest.read_text(encoding="utf-8"))
+        source_files = source_manifest.get("files")
+        if not isinstance(source_files, list):
+            raise SystemExit("Source archive manifest has no files list")
+        source_names = {
+            PurePosixPath(record["name"]).name.casefold()
+            for record in source_files
+            if isinstance(record, dict) and isinstance(record.get("name"), str)
+        }
     records = []
     for item in missing:
         reference = item.get("reference", "")
@@ -65,6 +78,8 @@ def main() -> None:
                        "ambiguous_basename_candidates" if matches else
                        "no_candidate_found"),
             "candidates": matches,
+            "source_archive_present": (None if source_names is None else
+                                       PurePosixPath(reference).name.casefold() in source_names),
             "requires_manual_validation": bool(matches),
         })
 
@@ -75,6 +90,9 @@ def main() -> None:
         "ambiguous_candidate_count": sum(r["status"] == "ambiguous_basename_candidates" for r in records),
         "no_candidate_count": sum(r["status"] == "no_candidate_found" for r in records),
         "automatic_repairs": 0,
+        "source_manifest_checked": source_names is not None,
+        "source_archive_present_count": sum(r["source_archive_present"] is True for r in records),
+        "source_archive_absent_count": sum(r["source_archive_present"] is False for r in records),
         "records": records,
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
