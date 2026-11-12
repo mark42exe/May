@@ -75,6 +75,7 @@ def main() -> None:
     battle_evidence = set(battle.get("resource_references", []))
     battle_evidence.update(battle.get("identifier_candidates", []))
     battle_evidence.update(battle_strings)
+    battle_evidence.add(battle["file"])
     missing = sorted(REQUIRED_BATTLE_EVIDENCE - battle_evidence)
     if missing:
         raise SystemExit("Battle-scene evidence missing: " + ", ".join(missing))
