@@ -69,12 +69,17 @@ def main() -> None:
         raise SystemExit("Top-level byte total disagrees with scene records")
     if battle is None:
         raise SystemExit("RFBattleLayer.ccb is absent from inventory")
-    battle_strings = {item.get("value") for item in battle.get("strings", [])}
-    missing = sorted(REQUIRED_BATTLE_EVIDENCE - battle_strings - {battle["file"]})
-    # Resource evidence and identifiers are separate arrays in the inventory.
+
+    # The inspector stores identifier candidates and strings as records with
+    # offset/value/encoding fields, not as bare strings.
     battle_evidence = set(battle.get("resource_references", []))
-    battle_evidence.update(battle.get("identifier_candidates", []))
-    battle_evidence.update(battle_strings)
+    for field in ("identifier_candidates", "strings"):
+        records = battle.get(field, [])
+        if not isinstance(records, list):
+            raise SystemExit(f"Malformed {field} in battle scene")
+        for record in records:
+            if isinstance(record, dict) and isinstance(record.get("value"), str):
+                battle_evidence.add(record["value"])
     battle_evidence.add(battle["file"])
     missing = sorted(REQUIRED_BATTLE_EVIDENCE - battle_evidence)
     if missing:
