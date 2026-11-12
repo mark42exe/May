@@ -43,6 +43,8 @@ def main() -> None:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--source-manifest", type=Path,
                         help="original DCA manifest from the source APK; distinguishes absent source assets from import losses")
+    parser.add_argument("--scene-bundle-root", type=Path,
+                        help="separately recovered original RCCB scene bundle root")
     args = parser.parse_args()
 
     root = args.asset_root.resolve()
@@ -65,6 +67,7 @@ def main() -> None:
             for record in source_files
             if isinstance(record, dict) and isinstance(record.get("name"), str)
         }
+    scene_bundle_index = build_index(args.scene_bundle_root.resolve()) if args.scene_bundle_root else None
     records = []
     for item in missing:
         reference = item.get("reference", "")
@@ -80,6 +83,8 @@ def main() -> None:
             "candidates": matches,
             "source_archive_present": (None if source_names is None else
                                        PurePosixPath(reference).name.casefold() in source_names),
+            "scene_bundle_present": (None if scene_bundle_index is None else
+                                    bool(candidates_for(reference, scene_bundle_index))),
             "requires_manual_validation": bool(matches),
         })
 
@@ -93,6 +98,9 @@ def main() -> None:
         "source_manifest_checked": source_names is not None,
         "source_archive_present_count": sum(r["source_archive_present"] is True for r in records),
         "source_archive_absent_count": sum(r["source_archive_present"] is False for r in records),
+        "scene_bundle_checked": scene_bundle_index is not None,
+        "scene_bundle_present_count": sum(r["scene_bundle_present"] is True for r in records),
+        "scene_bundle_absent_count": sum(r["scene_bundle_present"] is False for r in records),
         "records": records,
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
