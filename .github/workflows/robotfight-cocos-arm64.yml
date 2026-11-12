@@ -550,6 +550,33 @@ jobs:
           path: ${{ runner.temp }}/rccb_record_span_audit.json
           if-no-files-found: error
 
+      - name: Unit-test RCCB candidate word-pattern survey
+        run: |
+          set -euo pipefail
+          python3 tools/test_audit_rccb_candidate_word_patterns.py
+
+      - name: Survey RCCB candidate-start word patterns across scenes
+        run: |
+          set -euo pipefail
+          python3 tools/audit_rccb_candidate_word_patterns.py "$RUNNER_TEMP/rccb_binary_inspection.json" "$PROJECT_DIR/Resources/original" --out "$RUNNER_TEMP/rccb_candidate_word_patterns.json"
+          python3 - "$RUNNER_TEMP/rccb_candidate_word_patterns.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          report = json.loads(Path(sys.argv[1]).read_text())
+          if report["scene_count"] != 138 or report["candidate_count"] < 800:
+              raise SystemExit("RCCB candidate word survey coverage is incomplete")
+          if len(report["relative_word_offsets"]) != report["window_bytes"] // 4:
+              raise SystemExit("RCCB candidate word survey has missing word offsets")
+          print("Validated RCCB word-pattern survey:", report["candidate_count"], "candidate windows")
+          PY
+
+      - name: Upload RCCB candidate word-pattern survey
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-RCCB-Candidate-Word-Patterns
+          path: ${{ runner.temp }}/rccb_candidate_word_patterns.json
+          if-no-files-found: error
+
       - name: Upload RCCB token-to-record correlation report
         uses: actions/upload-artifact@v4
         with:
