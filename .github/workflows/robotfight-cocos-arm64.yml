@@ -12,6 +12,8 @@ on:
       - "tools/stage_recovered_robotfight_scenes.py"
       - "tools/audit_robotfight_scene_references.py"
       - "tools/reconcile_robotfight_scene_references.py"
+      - "tools/audit_rccb_asset_families.py"
+      - "tools/test_audit_rccb_asset_families.py"
       - "tools/audit_robotfight_audio.py"
       - "tools/audit_robotfight_animations.py"
       - "tools/inspect_rccb.py"
@@ -411,6 +413,22 @@ jobs:
               raise SystemExit("Scene bundle presence counts do not cover all missing references")
           print("Strict JSON report validated:", report["missing_reference_count"], "missing references;", report["source_archive_absent_count"], "absent from DCA archive;", report["scene_bundle_present_count"], "present in separate scene bundle")
           PY
+
+      - name: Unit-test RCCB missing asset family audit
+        run: |
+          set -euo pipefail
+          python3 tools/test_audit_rccb_asset_families.py
+
+      - name: Audit numbered asset families for unresolved RCCB references
+        run: |
+          python3 tools/audit_rccb_asset_families.py "$PROJECT_DIR/Resources/original" "$RUNNER_TEMP/scene_reference_audit.json" --out "$RUNNER_TEMP/rccb_asset_families.json"
+
+      - name: Upload RCCB asset family recovery report
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-RCCB-Asset-Family-Audit
+          path: ${{ runner.temp }}/rccb_asset_families.json
+          if-no-files-found: error
 
       - name: Upload RCCB missing asset candidate report
         uses: actions/upload-artifact@v4
