@@ -28,6 +28,8 @@ on:
       - "tools/test_correlate_rccb_records.py"
       - "tools/correlate_rccb_strings_to_records.py"
       - "tools/test_correlate_rccb_strings_to_records.py"
+      - "tools/audit_rccb_candidate_word_patterns.py"
+      - "tools/test_audit_rccb_candidate_word_patterns.py"
       - ".github/workflows/robotfight-cocos-arm64.yml"
 
 concurrency:
