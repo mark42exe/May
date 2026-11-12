@@ -197,10 +197,19 @@ jobs:
           # precision warning for its legacy fixed-point constant. Keep it
           # visible but do not promote this specific compatibility warning to
           # an error; all other compiler diagnostics retain their normal policy.
-          if "APP_CPPFLAGS += -Wno-error=implicit-const-int-float-conversion" not in check:
-              with path.open("a") as stream:
-                  stream.write("APP_CPPFLAGS += -Wno-error=implicit-const-int-float-conversion\n")
-          print("Configured ARM64, Android 21, static libc++, and legacy pvmp3 warning compatibility")
+          additions = [
+              "APP_CPPFLAGS += -Wno-error=implicit-const-int-float-conversion",
+              "APP_LDFLAGS += -Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384",
+          ]
+          for setting in additions:
+              if setting not in check:
+                  with path.open("a") as stream:
+                      stream.write(setting + "\\n")
+          final = path.read_text()
+          for setting in additions:
+              if setting not in final:
+                  raise SystemExit("Failed to apply native compatibility setting: " + setting)
+          print("Configured ARM64, Android 21, static libc++, pvmp3 warning compatibility, and 16 KB ELF page alignment")
           PY
           python3 - <<'PY'
           from pathlib import Path
