@@ -23,7 +23,7 @@ class DecodeRCCBStringsTests(unittest.TestCase):
 
     def test_decodes_length_prefixed_ascii(self):
         value = b"RFBattleLayer"
-        tokens = self.decode_bytes(struct.pack("<I", len(value)) + value + b"\\0")
+        tokens = self.decode_bytes(struct.pack("<I", len(value)) + value + b"\0")
         self.assertEqual(len(tokens), 1)
         self.assertEqual(tokens[0]["value"], value.decode("ascii"))
         self.assertTrue(tokens[0]["nul_terminated"])
@@ -34,19 +34,19 @@ class DecodeRCCBStringsTests(unittest.TestCase):
         self.assertEqual(tokens, [])
 
     def test_ignores_non_printable_payload(self):
-        value = b"Battle\\x00Layer"
-        tokens = self.decode_bytes(struct.pack("<I", len(value)) + value + b"\\0")
+        value = b"Battle\x00Layer"
+        tokens = self.decode_bytes(struct.pack("<I", len(value)) + value + b"\0")
         self.assertEqual(tokens, [])
 
     def test_ignores_oversized_length(self):
         value = b"A" * (MODULE.MAX_STRING_BYTES + 1)
-        tokens = self.decode_bytes(struct.pack("<I", len(value)) + value + b"\\0")
+        tokens = self.decode_bytes(struct.pack("<I", len(value)) + value + b"\0")
         self.assertEqual(tokens, [])
 
     def test_preserves_exact_payload_offset(self):
         value = b"CCSprite"
-        prefix = b"\\x99\\x88\\x77"
-        tokens = self.decode_bytes(prefix + struct.pack("<I", len(value)) + value + b"\\0")
+        prefix = b"\x99\x88\x77"
+        tokens = self.decode_bytes(prefix + struct.pack("<I", len(value)) + value + b"\0")
         self.assertEqual(len(tokens), 1)
         self.assertEqual(tokens[0]["payload_offset"], len(prefix) + 4)
 
