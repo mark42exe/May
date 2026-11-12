@@ -52,6 +52,8 @@ def build_report(inventory: dict, scene_root: Path, window_bytes: int = WINDOW_B
     by_offset: dict[int, Counter] = defaultdict(Counter)
     class_counts: Counter = Counter()
     examples = []
+    signatures: dict[int, Counter] = defaultdict(Counter)
+    signature_examples: dict[tuple[int, str], list] = defaultdict(list)
     candidate_count = 0
     scene_count = 0
 
@@ -75,6 +77,13 @@ def build_report(inventory: dict, scene_root: Path, window_bytes: int = WINDOW_B
                     by_offset[relative][decoded["kind"]] += 1
                     class_counts[decoded["kind"]] += 1
                     words.append(decoded)
+                # Exact 4-word signatures retain raw bytes; no semantic type is inferred.
+                for relative in range(0, window_bytes - 12, WORD_BYTES):
+                    signature = data[offset + relative:offset + relative + 16].hex()
+                    signatures[relative][signature] += 1
+                    key = (relative, signature)
+                    if len(signature_examples[key]) < 3:
+                        signature_examples[key].append({"scene": scene["file"], "table_index": table_index, "candidate_offset": offset})
                 if len(examples) < 24:
                     examples.append({
                         "scene": scene["file"],
@@ -95,14 +104,26 @@ def build_report(inventory: dict, scene_root: Path, window_bytes: int = WINDOW_B
             "dominant_kind": counts.most_common(1)[0][0] if counts else None,
         })
 
+    repeated_signatures = []
+    for relative, counts in sorted(signatures.items()):
+        for signature, count in counts.most_common():
+            if count >= 2:
+                repeated_signatures.append({
+                    "relative_offset": relative,
+                    "raw_16_byte_signature": signature,
+                    "occurrences": count,
+                    "examples": signature_examples[(relative, signature)],
+                })
+
     return {
-        "format": "RCCB candidate-start 32-bit word pattern survey v1",
+        "format": "RCCB candidate-start 32-bit word pattern survey v2",
         "scene_count": scene_count,
         "candidate_count": candidate_count,
         "window_bytes": window_bytes,
         "word_size": WORD_BYTES,
         "aggregate_word_kind_counts": dict(sorted(class_counts.items())),
         "relative_word_offsets": offsets,
+        "repeated_16_byte_signatures": repeated_signatures,
         "examples": examples,
         "limitations": [
             "Candidate offsets are heuristic and are not proven record starts.",
@@ -125,7 +146,7 @@ def main() -> None:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({k: v for k, v in report.items()
-                      if k not in ("relative_word_offsets", "examples")}, indent=2))
+                      if k not in ("relative_word_offsets", "repeated_16_byte_signatures", "examples")}, indent=2))
 
 
 if __name__ == "__main__":
