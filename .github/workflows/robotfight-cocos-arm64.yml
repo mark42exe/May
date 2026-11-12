@@ -382,7 +382,7 @@ jobs:
 
       - name: Reconcile unresolved RCCB references against recovered asset filenames
         run: |
-          python3 tools/reconcile_robotfight_scene_references.py "$PROJECT_DIR/Resources/original" "$RUNNER_TEMP/scene_reference_audit.json" --source-manifest "$RUNNER_TEMP/source_asset_archive_manifest.json" --out "$RUNNER_TEMP/scene_reference_candidates.json"
+          python3 tools/reconcile_robotfight_scene_references.py "$PROJECT_DIR/Resources/original" "$RUNNER_TEMP/scene_reference_audit.json" --source-manifest "$RUNNER_TEMP/source_asset_archive_manifest.json" --scene-bundle-root "$PROJECT_DIR/Resources" --out "$RUNNER_TEMP/scene_reference_candidates.json"
 
       - name: Validate reconciliation report is strict JSON
         run: |
@@ -398,7 +398,11 @@ jobs:
               raise SystemExit("Original source archive manifest was not checked")
           if report.get("source_archive_present_count", -1) + report.get("source_archive_absent_count", -1) != report["missing_reference_count"]:
               raise SystemExit("Source archive presence counts do not cover all missing references")
-          print("Strict JSON report validated:", report["missing_reference_count"], "missing references;", report["source_archive_absent_count"], "absent from original source archive")
+          if not report.get("scene_bundle_checked"):
+              raise SystemExit("Separate original scene bundle was not checked")
+          if report.get("scene_bundle_present_count", -1) + report.get("scene_bundle_absent_count", -1) != report["missing_reference_count"]:
+              raise SystemExit("Scene bundle presence counts do not cover all missing references")
+          print("Strict JSON report validated:", report["missing_reference_count"], "missing references;", report["source_archive_absent_count"], "absent from DCA archive;", report["scene_bundle_present_count"], "present in separate scene bundle")
           PY
 
       - name: Upload RCCB missing asset candidate report
