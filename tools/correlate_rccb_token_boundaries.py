@@ -72,7 +72,7 @@ def main() -> None:
     args = ap.parse_args()
     report = analyze(json.loads(args.samples.read_text()), json.loads(args.strings.read_text()))
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8")
+    args.out.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(json.dumps({k: v for k, v in report.items() if k != "records"}, indent=2))
 
 
