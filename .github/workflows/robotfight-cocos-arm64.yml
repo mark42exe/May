@@ -204,7 +204,7 @@ jobs:
           for setting in additions:
               if setting not in check:
                   with path.open("a") as stream:
-                      stream.write(setting + "\\n")
+                      stream.write(setting + chr(10))
           final = path.read_text()
           for setting in additions:
               if setting not in final:
