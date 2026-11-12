@@ -18,6 +18,8 @@ on:
       - "tools/validate_rccb_inventory.py"
       - "tools/analyze_rccb_records.py"
       - "tools/decode_rccb_strings.py"
+      - "tools/correlate_rccb_records.py"
+      - "tools/test_correlate_rccb_records.py"
       - ".github/workflows/robotfight-cocos-arm64.yml"
 
 concurrency:
@@ -452,6 +454,11 @@ jobs:
         run: |
           set -euo pipefail
           python3 tools/test_decode_rccb_strings.py
+
+      - name: Unit-test RCCB record correlation analyzer
+        run: |
+          set -euo pipefail
+          python3 tools/test_correlate_rccb_records.py
 
       - name: Decode and validate RCCB length-prefixed string layer
         run: |
