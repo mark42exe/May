@@ -334,7 +334,7 @@ jobs:
           from pathlib import Path
           import json, sys
           root = Path(sys.argv[1])
-          manifest = json.loads((root / "original_asset_manifest.json").read_text())
+          manifest = json.loads((root / "runtime_asset_index.json").read_text())
           files = manifest["imported_files"]
           if files < 3000:
               raise SystemExit(f"Original resource import incomplete: only {files} files")
@@ -349,8 +349,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 tools/test_build_original_asset_manifest.py
-          python3 tools/build_original_asset_manifest.py "$PROJECT_DIR/Resources/original" --output "$PROJECT_DIR/Resources/original/original_asset_manifest.json"
-          python3 - "$PROJECT_DIR/Resources/original/original_asset_manifest.json" <<'PY'
+          python3 tools/build_original_asset_manifest.py "$PROJECT_DIR/Resources/original" --output "$PROJECT_DIR/Resources/original/runtime_asset_index.json"
+          python3 - "$PROJECT_DIR/Resources/original/runtime_asset_index.json" <<'PY'
           import json, sys
           from pathlib import Path
           report = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
@@ -365,7 +365,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: RobotFight-Original-Asset-Integrity-Manifest
-          path: ${{ runner.temp }}/rf-cocos/Resources/original/original_asset_manifest.json
+          path: ${{ runner.temp }}/rf-cocos/Resources/original/runtime_asset_index.json
           if-no-files-found: error
 
       - name: Preflight all imported original images and critical data
