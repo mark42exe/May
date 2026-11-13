@@ -47,7 +47,7 @@ int boundedDamage(int raw, int defense, bool guarding) {
 
 int auditOriginalAssets() {
     auto* files = cocos2d::FileUtils::getInstance();
-    const auto manifest = files->getValueMapFromFile("original/original_asset_manifest.json");
+    const auto manifest = files->getValueMapFromFile("original/runtime_asset_index.json");
     const auto countIt = manifest.find("file_count");
     const auto filesIt = manifest.find("files");
     if (manifest.empty() || countIt == manifest.end() || filesIt == manifest.end()) {
