@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <numeric>
 #include <cstdio>
+#include <vector>
 
 namespace robotfight {
 namespace {
@@ -42,6 +43,40 @@ RobotState makeState(const RobotBuild& build) {
 int boundedDamage(int raw, int defense, bool guarding) {
     const int reduced = std::max(1, raw - defense / 4);
     return guarding ? std::max(1, reduced / 2) : reduced;
+}
+
+int auditOriginalAssets() {
+    auto* files = cocos2d::FileUtils::getInstance();
+    const auto manifest = files->getValueMapFromFile("original/original_asset_manifest.json");
+    const auto countIt = manifest.find("file_count");
+    const auto filesIt = manifest.find("files");
+    if (manifest.empty() || countIt == manifest.end() || filesIt == manifest.end()) {
+        CCLOG("[RF-ASSETS] runtime manifest missing or unreadable");
+        return -1;
+    }
+    const int declaredCount = countIt->second.asInt();
+    const auto entries = filesIt->second.asValueVector();
+    if (declaredCount < 3000 || entries.size() != static_cast<std::size_t>(declaredCount)) {
+        CCLOG("[RF-ASSETS] manifest inventory mismatch: declared=%d entries=%lu",
+              declaredCount, static_cast<unsigned long>(entries.size()));
+        return -1;
+    }
+    const char* required[] = {
+        "RFBattleLayer.ccb", "RFMainLayer.ccb", "RFEditorLayer.ccb",
+        "RFPartsData.plist", "Normal1.ogg", "bgm_scene_battleFight.wav",
+        "sfx_btn_press.ogg"
+    };
+    int missing = 0;
+    for (const char* relative : required) {
+        const std::string path = std::string("original/") + relative;
+        if (!files->isFileExist(path)) {
+            ++missing;
+            CCLOG("[RF-ASSETS] required original resource missing: %s", path.c_str());
+        }
+    }
+    CCLOG("[RF-ASSETS] runtime manifest valid: %d imported files; critical missing=%d",
+          declaredCount, missing);
+    return missing;
 }
 }
 
@@ -141,6 +176,8 @@ int LocalProfile::experienceIntoLevel() { return experience() % 250; }
 int LocalProfile::experienceToNextLevel() { return 250 - experienceIntoLevel(); }
 
 void LocalProfile::validateSavedData() {
+    // Check the packaged original-resource inventory at startup, not just in CI.
+    auditOriginalAssets();
     auto* save = cocos2d::UserDefault::getInstance();
     const int safeCoins = std::max(0, std::min(999999999, coins()));
     const int safeBattles = std::max(0, std::min(999999999, battles()));
