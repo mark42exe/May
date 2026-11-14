@@ -95,7 +95,12 @@ def inspect(path: Path) -> dict:
         "sha256": hashlib.sha256(data).hexdigest(),
         "magic": data[4:8].decode("ascii", "replace") if len(data) >= 8 else "",
         "prefix_u32": struct.unpack_from("<I", data, 0)[0] if len(data) >= 4 else None,
-        "header_u16": list(struct.unpack_from("<4H", data, 8)) if len(data) >= 16 else [],
+        "header_u16": list(struct.unpack_from("<6H", data, 8)) if len(data) >= 20 else [],
+        # Preserve the fixed prefix as raw values only. These words are
+        # cross-scene invariants, not assigned version/property semantics.
+        "header_prefix_words_u32": list(struct.unpack_from("<4I", data, 0)) if len(data) >= 16 else [],
+        "header_prefix_words_u16_offset8": list(struct.unpack_from("<6H", data, 8)) if len(data) >= 20 else [],
+        "header_prefix_words_u32_offset20": list(struct.unpack_from("<4I", data, 20)) if len(data) >= 36 else [],
         "node_type_counts": dict(Counter(types)),
         "resource_references": resources,
         "identifier_candidates": names,
