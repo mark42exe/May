@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <numeric>
 #include <cstdio>
+#include <cstdlib>
 #include <vector>
 
 namespace robotfight {
@@ -95,7 +96,7 @@ int auditOriginalAssets() {
         const std::string relative = index.substr(pathQuote + 1, pathEnd - pathQuote - 1);
         cursor = pathEnd + 1;
         if (relative.empty() || relative.find('/') != std::string::npos ||
-            relative.find('\\\\') != std::string::npos ||
+            relative.find('\\') != std::string::npos ||
             relative.find("..") != std::string::npos) {
             ++missing;
             CCLOG("[RF-ASSETS] unsafe or malformed manifest path: %s", relative.c_str());
