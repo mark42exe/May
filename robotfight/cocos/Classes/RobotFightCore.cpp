@@ -47,20 +47,37 @@ int boundedDamage(int raw, int defense, bool guarding) {
 
 int auditOriginalAssets() {
     auto* files = cocos2d::FileUtils::getInstance();
-    const auto manifest = files->getValueMapFromFile("original/runtime_asset_index.json");
-    const auto countIt = manifest.find("file_count");
-    const auto filesIt = manifest.find("files");
-    if (manifest.empty() || countIt == manifest.end() || filesIt == manifest.end()) {
-        CCLOG("[RF-ASSETS] runtime manifest missing or unreadable");
+    const std::string indexPath = "original/runtime_asset_index.json";
+    if (!files->isFileExist(indexPath)) {
+        CCLOG("[RF-ASSETS] runtime asset index missing: %s", indexPath.c_str());
         return -1;
     }
-    const int declaredCount = countIt->second.asInt();
-    const auto entries = filesIt->second.asValueVector();
-    if (declaredCount < 3000 || entries.size() != static_cast<std::size_t>(declaredCount)) {
-        CCLOG("[RF-ASSETS] manifest inventory mismatch: declared=%d entries=%lu",
-              declaredCount, static_cast<unsigned long>(entries.size()));
+
+    // Read JSON as text: Cocos' ValueMap loader is plist-oriented on this
+    // engine branch, so using it for the generated JSON index is unreliable.
+    const std::string index = files->getStringFromFile(indexPath);
+    const std::string countKey = "\"file_count\"";
+    const auto key = index.find(countKey);
+    if (index.empty() || key == std::string::npos) {
+        CCLOG("[RF-ASSETS] runtime asset index is empty or malformed");
         return -1;
     }
+    const auto colon = index.find(':', key + countKey.size());
+    if (colon == std::string::npos) {
+        CCLOG("[RF-ASSETS] runtime asset index has no file_count value");
+        return -1;
+    }
+    const auto firstDigit = index.find_first_of("0123456789", colon + 1);
+    if (firstDigit == std::string::npos) {
+        CCLOG("[RF-ASSETS] runtime asset index file_count is not numeric");
+        return -1;
+    }
+    const int declaredCount = std::atoi(index.c_str() + firstDigit);
+    if (declaredCount < 3000) {
+        CCLOG("[RF-ASSETS] runtime asset index reports too few files: %d", declaredCount);
+        return -1;
+    }
+
     const char* required[] = {
         "RFBattleLayer.ccb", "RFMainLayer.ccb", "RFEditorLayer.ccb",
         "RFPartsData.plist", "Normal1.ogg", "bgm_scene_battleFight.wav",
@@ -74,7 +91,7 @@ int auditOriginalAssets() {
             CCLOG("[RF-ASSETS] required original resource missing: %s", path.c_str());
         }
     }
-    CCLOG("[RF-ASSETS] runtime manifest valid: %d imported files; critical missing=%d",
+    CCLOG("[RF-ASSETS] runtime asset index reports %d files; critical missing=%d",
           declaredCount, missing);
     return missing;
 }
