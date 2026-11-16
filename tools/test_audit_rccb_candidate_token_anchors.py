@@ -27,7 +27,7 @@ class CandidateTokenAnchorTests(unittest.TestCase):
         samples, strings = self.fixture()
         report = analyze(samples, strings, radius=4)
         prefix = {x["delta_bytes"]: x["occurrences"] for x in report["nearby_delta_histograms"]["length_prefix"]}
-        self.assertEqual(prefix, {0: 1, 16: 0} if False else {0: 1, -4: 1})
+        self.assertEqual(prefix, {0: 1, -4: 1})
         payload = {x["delta_bytes"]: x["occurrences"] for x in report["nearby_delta_histograms"]["payload_start"]}
         self.assertEqual(payload, {4: 1, 0: 1})
 
