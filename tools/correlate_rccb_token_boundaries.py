@@ -30,7 +30,7 @@ def infer_marker(sample: dict) -> str:
         if isinstance(value, str) and value in NODE_CLASSES:
             return value
     for value in runs:
-        if isinstance(value, str) and value.lower().endswith(RESOURCE_SUFFIXES):
+        if isinstance(value, str) and any(value.lower().endswith(suffix) and len(value) > len(suffix) for suffix in RESOURCE_SUFFIXES):
             return "resource:" + value
     return "unclassified"
 
