@@ -20,6 +20,35 @@ class TokenBoundaryTests(unittest.TestCase):
         self.assertEqual(report["records"][0]["tokens"][0]["relative_payload_offset"], 4)
         self.assertEqual(report["records"][1]["tokens"][0]["relative_length_offset"], 12)
 
+    def test_infers_visible_node_and_resource_markers(self):
+        samples = {"scene_count": 1, "samples": [
+            {"scene": "A.ccb", "table_index": 0, "record_offset": 100,
+             "sample_length": 32, "ascii_runs": ["CCSprite", "robot.webp"]},
+            {"scene": "A.ccb", "table_index": 0, "record_offset": 200,
+             "sample_length": 32, "ascii_runs": ["robot.webp"]},
+            {"scene": "A.ccb", "table_index": 0, "record_offset": 300,
+             "sample_length": 32, "ascii_runs": ["arbitrary_identifier"]},
+        ]}
+        strings = {"scene_count": 1, "scenes": [{"file": "A.ccb", "tokens": []}]}
+        report = analyze(samples, strings)
+        self.assertEqual(
+            [record["marker"] for record in report["records"]],
+            ["CCSprite", "resource:robot.webp", "unclassified"],
+        )
+        self.assertEqual(
+            {entry["marker"] for entry in report["summary"]},
+            {"CCSprite", "resource:robot.webp"},
+        )
+
+    def test_explicit_marker_takes_precedence(self):
+        samples = {"scene_count": 1, "samples": [
+            {"scene": "A.ccb", "table_index": 0, "record_offset": 100,
+             "sample_length": 32, "marker": "manual", "ascii_runs": ["CCSprite"]},
+        ]}
+        strings = {"scene_count": 1, "scenes": [{"file": "A.ccb", "tokens": []}]}
+        report = analyze(samples, strings)
+        self.assertEqual(report["records"][0]["marker"], "manual")
+
     def test_rejects_scene_inventory_mismatch(self):
         with self.assertRaises(ValueError):
             analyze({"scene_count": 1, "samples": []}, {"scene_count": 2, "scenes": []})
