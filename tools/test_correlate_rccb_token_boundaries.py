@@ -28,6 +28,8 @@ class TokenBoundaryTests(unittest.TestCase):
              "sample_length": 32, "ascii_runs": ["robot.webp"]},
             {"scene": "A.ccb", "table_index": 0, "record_offset": 300,
              "sample_length": 32, "ascii_runs": ["arbitrary_identifier"]},
+            {"scene": "A.ccb", "table_index": 0, "record_offset": 400,
+             "sample_length": 32, "ascii_runs": [".webp"]},
         ]}
         strings = {"scene_count": 1, "scenes": [{"file": "A.ccb", "tokens": [
             {"length_offset": 104, "payload_offset": 108, "byte_length": 4, "value": "test"},
@@ -36,7 +38,7 @@ class TokenBoundaryTests(unittest.TestCase):
         report = analyze(samples, strings)
         self.assertEqual(
             [record["marker"] for record in report["records"]],
-            ["CCSprite", "resource:robot.webp", "unclassified"],
+            ["CCSprite", "resource:robot.webp", "unclassified", "unclassified"],
         )
         self.assertEqual(
             {entry["marker"] for entry in report["summary"]},
