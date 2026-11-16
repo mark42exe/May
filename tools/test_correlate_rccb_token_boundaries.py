@@ -29,7 +29,10 @@ class TokenBoundaryTests(unittest.TestCase):
             {"scene": "A.ccb", "table_index": 0, "record_offset": 300,
              "sample_length": 32, "ascii_runs": ["arbitrary_identifier"]},
         ]}
-        strings = {"scene_count": 1, "scenes": [{"file": "A.ccb", "tokens": [\n            {"length_offset": 104, "payload_offset": 108, "byte_length": 4, "value": "test"},\n            {"length_offset": 204, "payload_offset": 208, "byte_length": 4, "value": "test"},\n        ]}]}
+        strings = {"scene_count": 1, "scenes": [{"file": "A.ccb", "tokens": [
+            {"length_offset": 104, "payload_offset": 108, "byte_length": 4, "value": "test"},
+            {"length_offset": 204, "payload_offset": 208, "byte_length": 4, "value": "test"},
+        ]}]}
         report = analyze(samples, strings)
         self.assertEqual(
             [record["marker"] for record in report["records"]],
