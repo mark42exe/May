@@ -32,6 +32,8 @@ on:
       - "tools/test_audit_rccb_candidate_word_patterns.py"
       - "tools/correlate_rccb_token_boundaries.py"
       - "tools/test_correlate_rccb_token_boundaries.py"
+      - "tools/audit_rccb_candidate_token_anchors.py"
+      - "tools/test_audit_rccb_candidate_token_anchors.py"
       - "tools/audit_rccb_candidate_offset_alignment.py"
       - "tools/test_audit_rccb_candidate_offset_alignment.py"
       - ".github/workflows/robotfight-cocos-arm64.yml"
@@ -629,6 +631,35 @@ jobs:
         with:
           name: RobotFight-RCCB-Token-Boundary-Correlation
           path: ${{ runner.temp }}/rccb_token_boundary_correlation.json
+          if-no-files-found: error
+
+      - name: Unit-test RCCB candidate-token anchor audit
+        run: |
+          set -euo pipefail
+          python3 tools/test_audit_rccb_candidate_token_anchors.py
+
+      - name: Audit RCCB candidate offsets against exact string anchors
+        run: |
+          set -euo pipefail
+          python3 tools/audit_rccb_candidate_token_anchors.py "$RUNNER_TEMP/rccb_record_samples.json" "$RUNNER_TEMP/rccb-string-layer.json" --radius 16 --out "$RUNNER_TEMP/rccb_candidate_token_anchors.json"
+          python3 - "$RUNNER_TEMP/rccb_candidate_token_anchors.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          report = json.loads(Path(sys.argv[1]).read_text())
+          if report["scene_count"] != 138 or report["sample_count"] < 800:
+              raise SystemExit("RCCB candidate-token anchor coverage is incomplete")
+          if report["exact_length_prefix_matches"] < 1 or report["exact_payload_start_matches"] < 1:
+              raise SystemExit("Expected exact token-anchor coincidences were not found")
+          print("Validated candidate-token anchors:",
+                report["exact_length_prefix_matches"], "prefix matches;",
+                report["exact_payload_start_matches"], "payload matches")
+          PY
+
+      - name: Upload RCCB candidate-token anchor audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotFight-RCCB-Candidate-Token-Anchors
+          path: ${{ runner.temp }}/rccb_candidate_token_anchors.json
           if-no-files-found: error
 
       - name: Upload RCCB candidate word-pattern survey
