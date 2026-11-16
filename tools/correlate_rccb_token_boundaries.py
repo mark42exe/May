@@ -10,6 +10,30 @@ import collections
 import json
 from pathlib import Path
 
+NODE_CLASSES = {
+    "CCNode", "CCSprite", "CCSprite9Slice", "CCLabelTTF", "CCLabelBMFont",
+    "CCButton", "DCNode", "DCLabel", "DCLabelTTF", "DCSprite",
+    "DCUIButton", "DCUIControl",
+}
+RESOURCE_SUFFIXES = (".webp", ".png", ".jpg", ".jpeg", ".ttf", ".fnt", ".plist", ".json")
+
+
+def infer_marker(sample: dict) -> str:
+    """Use visible class/resource strings as grouping labels, never as semantics."""
+    existing = sample.get("marker")
+    if isinstance(existing, str) and existing:
+        return existing
+    runs = sample.get("ascii_runs", [])
+    if not isinstance(runs, list):
+        return "unclassified"
+    for value in runs:
+        if isinstance(value, str) and value in NODE_CLASSES:
+            return value
+    for value in runs:
+        if isinstance(value, str) and value.lower().endswith(RESOURCE_SUFFIXES):
+            return "resource:" + value
+    return "unclassified"
+
 
 def analyze(samples: dict, strings: dict) -> dict:
     if samples.get("scene_count") != strings.get("scene_count"):
@@ -20,6 +44,7 @@ def analyze(samples: dict, strings: dict) -> dict:
     for sample in samples.get("samples", []):
         start = sample["record_offset"]
         end = start + sample["sample_length"]
+        marker = infer_marker(sample)
         tokens = by_scene.get(sample["scene"])
         if tokens is None:
             raise ValueError("sample scene missing from string layer: " + sample["scene"])
@@ -34,10 +59,10 @@ def analyze(samples: dict, strings: dict) -> dict:
                 "relative_payload_offset": rel_payload,
                 "byte_length": token["byte_length"], "relation": relation,
             })
-            distributions[(sample["table_index"], sample.get("marker", "unclassified"))][rel_len] += 1
+            distributions[(sample["table_index"], marker)][rel_len] += 1
         records.append({
             "scene": sample["scene"], "table_index": sample["table_index"],
-            "record_offset": start, "marker": sample.get("marker", "unclassified"),
+            "record_offset": start, "marker": marker,
             "token_count": len(offsets), "tokens": offsets,
             "candidate_starts_with_string_length_prefix": any(x["relative_length_offset"] == 0 for x in offsets),
         })
@@ -51,13 +76,15 @@ def analyze(samples: dict, strings: dict) -> dict:
             ],
         })
     return {
-        "format": "RCCB candidate-to-string-boundary correlation v1",
+        "format": "RCCB candidate-to-string-boundary correlation v2",
         "scene_count": samples["scene_count"], "sample_count": len(records),
         "records_with_tokens": sum(bool(r["token_count"]) for r in records),
         "records_starting_at_string_length_prefix": sum(r["candidate_starts_with_string_length_prefix"] for r in records),
+        "marker_grouping": "explicit sample marker, else first recognized visible node-class token, else first resource token, else unclassified",
         "summary": summary, "records": records,
         "limitations": [
             "Candidate record offsets remain heuristic.",
+            "Visible marker strings are grouping labels only, not proof of record type.",
             "String-token boundary alignment does not establish a property field.",
             "No node class, property value, ownership, or parent-child relationship is decoded.",
         ],
@@ -72,7 +99,7 @@ def main() -> None:
     args = ap.parse_args()
     report = analyze(json.loads(args.samples.read_text()), json.loads(args.strings.read_text()))
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    args.out.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8")
     print(json.dumps({k: v for k, v in report.items() if k != "records"}, indent=2))
 
 
